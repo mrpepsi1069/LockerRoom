@@ -1,0 +1,38 @@
+{
+  "colors": {
+    "primary": "#5865F2",
+    "success": "#57F287",
+    "error": "#ED4245",
+    "warning": "#FEE75C"
+  },
+  "emojis": {
+    "ring": "💍",
+    "trophy": "🏆",
+    "check": "✅",
+    "cross": "❌",
+    "star": "⭐",
+    "fire": "🔥",
+    "crown": "👑"
+  },
+  "premium": {
+    "price": 4.99,
+    "currency": "USD",
+    "features": [
+      "Auto-DM game times to team members",
+      "Custom bot profile picture",
+      "Advanced statistics dashboard",
+      "Priority support",
+      "Custom embed colors"
+    ]
+  },
+  "limits": {
+    "maxLineups": 25,
+    "maxLeagues": 10,
+    "maxPlayersPerLineup": 15
+  },
+  "defaults": {
+    "gametimeReminderMinutes": 60,
+    "activityCheckInterval": "weekly",
+    "botColor": "#5865F2"
+  }
+}
