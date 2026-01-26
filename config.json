@@ -1,38 +1,22 @@
 {
-  "colors": {
-    "primary": "#5865F2",
-    "success": "#57F287",
-    "error": "#ED4245",
-    "warning": "#FEE75C"
+  "name": "lockerroom-bot",
+  "version": "1.0.0",
+  "description": "Team chat bot for league teams",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "deploy": "node deploy-commands.js"
   },
-  "emojis": {
-    "ring": "💍",
-    "trophy": "🏆",
-    "check": "✅",
-    "cross": "❌",
-    "star": "⭐",
-    "fire": "🔥",
-    "crown": "👑"
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "mongodb": "^6.3.0",
+    "dotenv": "^16.4.1"
   },
-  "premium": {
-    "price": 4.99,
-    "currency": "USD",
-    "features": [
-      "Auto-DM game times to team members",
-      "Custom bot profile picture",
-      "Advanced statistics dashboard",
-      "Priority support",
-      "Custom embed colors"
-    ]
+  "devDependencies": {
+    "nodemon": "^3.0.3"
   },
-  "limits": {
-    "maxLineups": 25,
-    "maxLeagues": 10,
-    "maxPlayersPerLineup": 15
-  },
-  "defaults": {
-    "gametimeReminderMinutes": 60,
-    "activityCheckInterval": "weekly",
-    "botColor": "#5865F2"
+  "engines": {
+  "node": "20.x"
   }
 }
