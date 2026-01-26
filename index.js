@@ -5,8 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const db = require('./database');
 
-let databaseReady = false;
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -17,74 +15,69 @@ const client = new Client({
     ]
 });
 
-// ==============================
-// LOAD COMMANDS
-// ==============================
+// Command collection
 client.commands = new Collection();
+
+// Load commands
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-    const command = require(path.join(commandsPath, file));
-    if (command.data && command.execute) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    
+    if ('data' in command && 'execute' in command) {
         client.commands.set(command.data.name, command);
         console.log(`✅ Loaded command: ${command.data.name}`);
+    } else {
+        console.log(`⚠️ Warning: ${file} is missing required "data" or "execute" property.`);
     }
 }
 
-// ==============================
-// READY EVENT
-// ==============================
+// Bot ready event
 client.once(Events.ClientReady, async () => {
-    try {
-        await db.initialize();
-        databaseReady = true;
-
-        console.log(`\n🤖 ${client.user.tag} is online!`);
-        console.log(`📊 Serving ${client.guilds.cache.size} servers`);
-        console.log(`👥 Watching ${client.users.cache.size} users\n`);
-
-        client.user.setActivity('your team | /help', {
-            type: ActivityType.Watching
-        });
-    } catch (err) {
-        console.error('❌ Failed to initialize database:', err);
-        process.exit(1);
-    }
+    console.log(`\n🤖 ${client.user.tag} is online!`);
+    console.log(`📊 Serving ${client.guilds.cache.size} servers`);
+    console.log(`👥 Watching ${client.users.cache.size} users\n`);
+    
+    // Set bot status
+    client.user.setActivity('your team | /help', { type: ActivityType.Watching });
+    
+    // Initialize database connection
+    await db.initialize();
 });
 
-// ==============================
-// INTERACTION HANDLER
-// ==============================
+// Interaction handler
 client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    if (!databaseReady) {
-        return interaction.reply({
-            content: '⏳ Bot is still starting up, please try again in a moment.',
-            flags: 64
-        });
-    }
+    console.log(`\n📨 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
 
     const command = client.commands.get(interaction.commandName);
-    if (!command) return;
+
+    if (!command) {
+        console.error(`❌ Command ${interaction.commandName} not found.`);
+        return;
+    }
 
     try {
-        await db.logCommand(
-            interaction.commandName,
-            interaction.guildId,
-            interaction.user.id
-        );
-
+        // Log command usage
+        await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
+        
+        console.log(`⚙️ Executing command: ${interaction.commandName}`);
+        
+        // Execute command
         await command.execute(interaction);
+        
+        console.log(`✅ Command completed: ${interaction.commandName}`);
     } catch (error) {
-        console.error(`Error executing ${interaction.commandName}:`, error);
-
+        console.error(`❌ Error executing ${interaction.commandName}:`, error);
+        
         const errorMessage = {
-            content: '❌ There was an error executing this command.',
-            flags: 64
+            content: '❌ There was an error executing this command!',
+            ephemeral: true
         };
-
+        
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp(errorMessage);
         } else {
@@ -93,33 +86,51 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-// ==============================
-// GUILD EVENTS
-// ==============================
+// Guild join event
 client.on(Events.GuildCreate, async guild => {
-    console.log(`✅ Joined guild: ${guild.name} (${guild.id})`);
-    if (databaseReady) {
-        await db.createGuild(guild.id, guild.name);
-    }
+    console.log(`✅ Joined new guild: ${guild.name} (${guild.id})`);
+    
+    // Create guild entry in database
+    await db.createGuild(guild.id, guild.name);
 });
 
-client.on(Events.GuildDelete, guild => {
+// Guild leave event
+client.on(Events.GuildDelete, async guild => {
     console.log(`❌ Left guild: ${guild.name} (${guild.id})`);
 });
 
-// ==============================
-// PROCESS SAFETY
-// ==============================
-process.on('unhandledRejection', err => {
-    console.error('Unhandled rejection:', err);
+// Error handling
+process.on('unhandledRejection', error => {
+    console.error('Unhandled promise rejection:', error);
 });
 
-process.on('uncaughtException', err => {
-    console.error('Uncaught exception:', err);
+process.on('uncaughtException', error => {
+    console.error('Uncaught exception:', error);
     process.exit(1);
 });
 
-// ==============================
-// LOGIN
-// ==============================
+// Create a simple HTTP server for Render (free tier requirement)
+const http = require('http');
+const PORT = process.env.PORT || 3000;
+
+const server = http.createServer((req, res) => {
+    if (req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'online',
+            bot: client.user?.tag || 'Starting...',
+            guilds: client.guilds.cache.size,
+            uptime: process.uptime()
+        }));
+    } else {
+        res.writeHead(404);
+        res.end('Not Found');
+    }
+});
+
+server.listen(PORT, () => {
+    console.log(`🌐 HTTP server listening on port ${PORT}`);
+});
+
+// Login
 client.login(process.env.DISCORD_TOKEN);
