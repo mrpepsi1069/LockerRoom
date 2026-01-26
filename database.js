@@ -1,9 +1,13 @@
 // database.js - PostgreSQL connection and query functions
-const { MongoClient } = require('mongodb'); // ✅
+// database.js - PostgreSQL connection and query functions
+const { Pool } = require('pg'); // ✅ REQUIRED
+const { MongoClient } = require('mongodb'); // ✅ kept (unused but not removed)
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false
 });
 
 // Test connection
