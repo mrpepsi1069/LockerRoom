@@ -1,5 +1,5 @@
 // database.js - PostgreSQL connection and query functions
-const { Pool } = require('pg');
+const { MongoClient } = require('mongodb'); // ✅
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
