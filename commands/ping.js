@@ -10,8 +10,8 @@ module.exports = {
     async execute(interaction) {
         const sent = await interaction.reply({ 
             content: '🏓 Pinging...', 
-            fetchReply: true,
-            flags: 64 // Ephemeral flag
+            ephemeral: true,
+            fetchReply: true
         });
 
         const latency = sent.createdTimestamp - interaction.createdTimestamp;
@@ -28,8 +28,7 @@ module.exports = {
 
         await interaction.editReply({ 
             content: null,
-            embeds: [embed],
-            flags: 64 // Ephemeral flag
+            embeds: [embed]
         });
     }
 };
