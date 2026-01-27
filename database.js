@@ -7,7 +7,17 @@ let db;
 // MongoDB connection
 async function initialize() {
     try {
-        client = new MongoClient(process.env.DATABASE_URL);
+        const options = {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            tls: true,
+            tlsAllowInvalidCertificates: true,
+            tlsAllowInvalidHostnames: true,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        };
+        
+        client = new MongoClient(process.env.DATABASE_URL, options);
         await client.connect();
         db = client.db('lockerroom_bot');
         console.log('✅ MongoDB connected successfully');
@@ -16,7 +26,8 @@ async function initialize() {
         await createIndexes();
     } catch (error) {
         console.error('❌ MongoDB connection failed:', error);
-        process.exit(1);
+        console.error('⚠️ Bot will continue without database - some features may not work');
+        // Don't exit, let bot run without DB
     }
 }
 
@@ -45,6 +56,7 @@ async function createIndexes() {
 // ============================================
 
 async function createGuild(guildId, guildName) {
+    if (!db) return null;
     const result = await db.collection('guilds').updateOne(
         { guild_id: guildId },
         { 
@@ -474,6 +486,7 @@ async function createSuggestion(guildId, userId, suggestionText) {
 // ============================================
 
 async function logCommand(commandName, guildId, userId) {
+    if (!db) return; // Skip if DB not connected
     await db.collection('command_usage').insertOne({
         command_name: commandName,
         guild_id: guildId,
