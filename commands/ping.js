@@ -1,6 +1,5 @@
 // commands/ping.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const config = require('../config.json');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -23,7 +22,7 @@ module.exports = {
                 { name: 'Bot Latency', value: `${latency}ms`, inline: true },
                 { name: 'API Latency', value: `${apiLatency}ms`, inline: true }
             )
-            .setColor(config.colors.primary)
+            .setColor('#5865F2')
             .setTimestamp();
 
         await interaction.editReply({ 
