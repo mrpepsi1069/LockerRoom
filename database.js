@@ -8,13 +8,9 @@ let db;
 async function initialize() {
     try {
         const options = {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
             tls: true,
             tlsAllowInvalidCertificates: true,
-            tlsAllowInvalidHostnames: true,
             serverSelectionTimeoutMS: 5000,
-            socketTimeoutMS: 45000,
         };
         
         client = new MongoClient(process.env.DATABASE_URL, options);
@@ -25,7 +21,7 @@ async function initialize() {
         // Create indexes
         await createIndexes();
     } catch (error) {
-        console.error('❌ MongoDB connection failed:', error);
+        console.error('❌ MongoDB connection failed:', error.message);
         console.error('⚠️ Bot will continue without database - some features may not work');
         // Don't exit, let bot run without DB
     }
