@@ -61,8 +61,10 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     try {
-        // Log command usage
-        await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
+        // Log command usage (only if DB is connected)
+        if (db) {
+            await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
+        }
         
         console.log(`⚙️ Executing command: ${interaction.commandName}`);
         
