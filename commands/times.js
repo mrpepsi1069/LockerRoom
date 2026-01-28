@@ -1,19 +1,24 @@
 // commands/times.js
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { hasManagerPerms } = require('../utils/permissions');
-const { errorEmbed } = require('../utils/embeds');
+const { errorEmbed, successEmbed } = require('../utils/embeds');
+const db = require('../database');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('times')
         .setDescription('Post multiple game time options (Manager only)')
+        .addStringOption(option =>
+            option.setName('league')
+                .setDescription('League name')
+                .setRequired(true))
         .addRoleOption(option =>
             option.setName('role')
                 .setDescription('Role to ping')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('time1')
-                .setDescription('First time option')
+                .setDescription('First time option (e.g., "8 PM EST")')
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('time2')
@@ -30,14 +35,6 @@ module.exports = {
         .addStringOption(option =>
             option.setName('time5')
                 .setDescription('Fifth time option')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('league')
-                .setDescription('League name')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('message')
-                .setDescription('Additional message')
                 .setRequired(false)),
     
     async execute(interaction) {
@@ -49,9 +46,8 @@ module.exports = {
             });
         }
 
+        const league = interaction.options.getString('league');
         const role = interaction.options.getRole('role');
-        const league = interaction.options.getString('league') || 'Game';
-        const customMessage = interaction.options.getString('message') || '';
 
         // Collect all time options
         const times = [];
@@ -60,27 +56,41 @@ module.exports = {
             if (time) times.push(time);
         }
 
+        await interaction.deferReply({ ephemeral: true });
+
+        // Build embed description with time sections
+        let description = `**League:** ${league}\n\n`;
+        times.forEach(time => {
+            description += `🕐 **${time}**\n• None yet\n\n`;
+        });
+
         // Create embed
         const embed = new EmbedBuilder()
-            .setTitle(`🎮 ${league} - Time Options`)
-            .setDescription(`${role}${customMessage ? `\n\n${customMessage}` : ''}\n\n**Which time works best?**\n\n${times.map((t, i) => `${i + 1}️⃣ ${t}`).join('\n')}`)
+            .setTitle('⏰ Gametime Scheduled')
+            .setDescription(description.trim())
             .setColor('#5865F2')
+            .setFooter({ text: 'LockerRoom | Gametime Manager' })
             .setTimestamp();
 
+        // Create buttons for each time (max 5)
+        const buttons = times.map((time, index) => 
+            new ButtonBuilder()
+                .setCustomId(`times_${index}_${time}`)
+                .setLabel(time)
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        const row = new ActionRowBuilder().addComponents(buttons);
+
+        // Send the message
         const message = await interaction.channel.send({
             content: `${role}`,
             embeds: [embed],
+            components: [row]
         });
 
-        // Add reactions
-        const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
-        for (let i = 0; i < times.length; i++) {
-            await message.react(emojis[i]);
-        }
-
-        await interaction.reply({
-            content: 'Time poll posted!',
-            ephemeral: true
+        await interaction.editReply({
+            embeds: [successEmbed('Times Poll Created', `Successfully created times poll for **${league}**`)]
         });
     }
 };
