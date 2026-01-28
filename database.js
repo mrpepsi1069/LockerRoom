@@ -253,7 +253,6 @@ async function addAward(guildId, leagueId, userId, awardName, season, awardedBy)
     }
 }
 
-
 async function getUserAwards(guildId, userId) {
     if (!db) return null;
     const user = await db.collection('users').findOne({ user_id: userId });
@@ -402,25 +401,11 @@ async function deleteLineup(guildId, lineupName) {
 // GAMETIME FUNCTIONS
 // ============================================
 
-if (!leagueId) {
-    throw new Error('Invalid leagueId passed to createGametime');
-}
-
-if (!league || !league._id) {
-    return interaction.editReply({
-        embeds: [errorEmbed(
-            'League Error',
-            'This league is missing an ID. Please re-create the league.'
-        )],
-        ephemeral: true
-    });
-}
-
 async function createGametime(guildId, leagueId, gameTime, messageId, channelId, pingRoleId, createdBy) {
     if (!db) return null;
     const gametime = {
         guild_id: guildId,
-        league_id: String(leagueId),
+        league_id: leagueId ? String(leagueId) : null,
         game_time: gameTime,
         message_id: messageId,
         channel_id: channelId,
@@ -526,7 +511,7 @@ async function createSuggestion(guildId, userId, suggestionText) {
 // ============================================
 
 async function logCommand(commandName, guildId, userId) {
-    if (!db) return; // Skip if DB not connected
+    if (!db) return;
     await db.collection('command_usage').insertOne({
         command_name: commandName,
         guild_id: guildId,
@@ -583,8 +568,6 @@ async function updateGametimeRSVP(messageId, update) {
     );
 }
 
-
-
 module.exports = {
     initialize,
     
@@ -640,7 +623,7 @@ module.exports = {
     getBotStats,
     setPremium,
 
-    //Gametime
+    // Gametime RSVP
     createGametimeRSVP,
     getGametimeRSVP,
     updateGametimeRSVP
