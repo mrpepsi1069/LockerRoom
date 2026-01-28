@@ -101,65 +101,56 @@ function awardsEmbed(user, awards) {
 /* ---------- HELP (CRASH-PROOF) ---------- */
 function helpEmbed() {
     return new EmbedBuilder()
-        .setTitle('🤖 LockerRoom Commands')
-        .setDescription('Team management & league tools')
+        .setTitle('🤖 LockerRoom Bot Commands')
+        .setDescription('Team chat bot for league teams')
         .addFields(
             {
-                name: '👥 Public',
-                value: [
-                    '/help',
-                    '/invite',
-                    '/color',
-                    '/awardcheck',
-                    '/suggest',
-                    '/bold',
-                    '/flipcoin',
-                    '/fkick',
-                    '/ping'
-                ].join('\n')
+                name: '👥 Public Commands',
+                value:
+                    '`/help` - Display this menu\n' +
+                    '`/invite` - Get bot invite\n' +
+                    '`/awardcheck` - View self awards\n' +
+                    '`/suggest` - Submit suggestion\n' +
+                    '`/flipcoin` - Flip a coin\n' +
+                    '`/bold` - Boldify text\n' +
+                    '`/fban` - Fake ban\n' +
+                    '`/fkick` - Fake kick\n' +
+                    '`/ping` - Check bot latency'
             },
             {
-                name: '👮 Staff',
-                value: [
-                    '/mutevc',
-                    '/unmutevc',
-                    '/dmtcmembers'
-                ].join('\n')
+                name: '👮 Staff Commands',
+                value:
+                    '`/mutevc` - Mute voice channel\n' +
+                    '`/unmutevc` - Unmute voice channel\n' +
+                    '`/help` - List commands\n' +
+                    '`/dmtcmembers` - DM members with custom message (Premium)'
             },
             {
-                name: '👑 Manager',
-                value: [
-                    '/gametime',
-                    '/times',
-                    '/league-add',
-                    '/lineup',
-                    '/lineups',
-                    '/ring-add',
-                    '/award',
-                    '/activitycheck'
-                ].join('\n')
+                name: '👑 Manager Commands',
+                value:
+                    '`/gametime` - Create game time poll (times like 8 PM EST, 9 PM EST — DM players with Premium)\n' +
+                    '`/times` - Multiple time options\n' +
+                    '`/league-add` - Post recruitment\n' +
+                    '`/ring-add` - Grant rings\n' +
+                    '`/award` - Give awards\n' +
+                    '`/lineup` - Manage lineups (existing lineups selectable)\n' +
+                    '`/lineups` - View all lineups\n' +
+                    '`/activitycheck` - Set activity check'
             },
             {
-                name: '🔧 Admin',
-                value: [
-                    '/setup',
-                    '/change-botname',
-                    '/change-pfp',
-                    '/change-description'
-                ].join('\n')
-            },
-            {
-                name: '👑 Bot Owner',
-                value: [
-                    '/add-premium',
-                    '/revoke-premium',
-                    '/premium',
-                    '/guilds',
-                    '/botstats'
-                ].join('\n')
+                name: '🔧 Admin Commands',
+                value:
+                    '`/setup` - Configure bot\n' +
+                    '`/change-pfp` - Change bot picture (Premium)\n' +
+                    '`/change-botname` - Change bot name (Premium)\n' +
+                    '`/change-description` - Change bot description (Premium)\n\n' +
+                    '**Bot Owner**\n' +
+                    '`/add-premium` - Add Premium to a guild with guild ID\n' +
+                    '`/revoke-premium` - Revoke Premium from a guild with guild ID\n' +
+                    '`/guilds` - View all guilds and invite links'
             }
         )
-        .setColor(config.colors.primary ?? 0x5865F2)
+        .setColor(0x5865F2) // Discord blurple (safe fallback)
         .setFooter({ text: 'LockerRoom Bot • By Ghostie' })
         .setTimestamp();
 }
