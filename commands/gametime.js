@@ -72,9 +72,10 @@ module.exports = {
             components: [row]
         });
 
+        // Fixed: Now passing the actual time instead of null
         await db.createGametime(
             interaction.guildId,
-            null,
+            time,  // Changed from null to the actual time value
             new Date(),
             message.id,
             interaction.channelId,
