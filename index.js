@@ -1,125 +1,151 @@
-// index.js
+// index.js - Main bot entry point
 require('dotenv').config();
-
-const { 
-    Client,
-    GatewayIntentBits,
-    Collection,
-    Events,
-    ActivityType
-} = require('discord.js');
-
+const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const http = require('http');
-const database = require('./database');
+const db = require('./database');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.MessageContent,
     ]
 });
 
+// Command collection
 client.commands = new Collection();
 
-/* ===================== LOAD COMMANDS ===================== */
-
+// Load commands
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-    const command = require(path.join(commandsPath, file));
-    if (command.data && command.execute) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    
+    if ('data' in command && 'execute' in command) {
         client.commands.set(command.data.name, command);
         console.log(`✅ Loaded command: ${command.data.name}`);
+    } else {
+        console.log(`⚠️ Warning: ${file} is missing required "data" or "execute" property.`);
     }
 }
 
-/* ===================== READY ===================== */
-
+// Bot ready event
 client.once(Events.ClientReady, async () => {
-    console.log(`🤖 ${client.user.tag} is online`);
-    console.log(`📊 Servers: ${client.guilds.cache.size}`);
-
-    client.user.setActivity('/help | LockerRoom', {
-        type: ActivityType.Watching
-    });
-
-    try {
-        await database.initialize();
-    } catch {
-        console.warn('⚠️ DB failed during startup');
-    }
+    console.log(`\n🤖 ${client.user.tag} is online!`);
+    console.log(`📊 Serving ${client.guilds.cache.size} servers`);
+    console.log(`👥 Watching ${client.users.cache.size} users\n`);
+    
+    // Set bot status
+    client.user.setActivity('your team | /help', { type: ActivityType.Watching });
+    
+    // Initialize database connection
+    await db.initialize();
 });
 
-/* ===================== INTERACTIONS ===================== */
-
+// Interaction handler
 client.on(Events.InteractionCreate, async interaction => {
+    // Handle autocomplete
+    if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) return;
+        
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error(`Autocomplete error for ${interaction.commandName}:`, error);
+        }
+        return;
+    }
+    
     if (!interaction.isChatInputCommand()) return;
 
+    console.log(`\n📨 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
+
     const command = client.commands.get(interaction.commandName);
-    if (!command) return;
+
+    if (!command) {
+        console.error(`❌ Command ${interaction.commandName} not found.`);
+        return;
+    }
 
     try {
-        await database.logCommand(
-            interaction.commandName,
-            interaction.guildId,
-            interaction.user.id
-        );
-
+        // Log command usage (only if DB is connected)
+        if (db) {
+            await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
+        }
+        
+        console.log(`⚙️ Executing command: ${interaction.commandName}`);
+        
+        // Execute command
         await command.execute(interaction);
-    } catch (err) {
-        console.error(`❌ Command error:`, err);
-
-        const msg = { 
-            content: '❌ Command failed.', 
-            ephemeral: true 
+        
+        console.log(`✅ Command completed: ${interaction.commandName}`);
+    } catch (error) {
+        console.error(`❌ Error executing ${interaction.commandName}:`, error);
+        
+        const errorMessage = {
+            content: '❌ There was an error executing this command!',
+            ephemeral: true
         };
-
+        
         if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(msg);
+            await interaction.followUp(errorMessage);
         } else {
-            await interaction.reply(msg);
+            await interaction.reply(errorMessage);
         }
     }
 });
 
-/* ===================== GUILD EVENTS ===================== */
-
+// Guild join event
 client.on(Events.GuildCreate, async guild => {
-    console.log(`➕ Joined: ${guild.name}`);
-    await database.createGuild(guild.id, guild.name);
+    console.log(`✅ Joined new guild: ${guild.name} (${guild.id})`);
+    
+    // Create guild entry in database
+    await db.createGuild(guild.id, guild.name);
 });
 
-/* ===================== ERROR HANDLING ===================== */
-
-process.on('unhandledRejection', err => {
-    console.error('Unhandled rejection:', err);
+// Guild leave event
+client.on(Events.GuildDelete, async guild => {
+    console.log(`❌ Left guild: ${guild.name} (${guild.id})`);
 });
 
-process.on('uncaughtException', err => {
-    console.error('Uncaught exception:', err);
+// Error handling
+process.on('unhandledRejection', error => {
+    console.error('Unhandled promise rejection:', error);
 });
 
-/* ===================== HTTP SERVER (RENDER) ===================== */
+process.on('uncaughtException', error => {
+    console.error('Uncaught exception:', error);
+    process.exit(1);
+});
 
+// Create a simple HTTP server for Render (free tier requirement)
+const http = require('http');
 const PORT = process.env.PORT || 3000;
 
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-        status: 'online',
-        bot: client.user?.tag ?? 'starting',
-        uptime: process.uptime()
-    }));
-}).listen(PORT, () => {
-    console.log(`🌐 HTTP server on ${PORT}`);
+const server = http.createServer((req, res) => {
+    if (req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            status: 'online',
+            bot: client.user?.tag || 'Starting...',
+            guilds: client.guilds.cache.size,
+            uptime: process.uptime()
+        }));
+    } else {
+        res.writeHead(404);
+        res.end('Not Found');
+    }
 });
 
-/* ===================== LOGIN ===================== */
+server.listen(PORT, () => {
+    console.log(`🌐 HTTP server listening on port ${PORT}`);
+});
 
+// Login
 client.login(process.env.DISCORD_TOKEN);

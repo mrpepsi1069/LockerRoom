@@ -1,7 +1,7 @@
 // commands/setup.js
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const db = require('../database');
-const { setupCompleteEmbed, errorEmbed, successEmbed } = require('../utils/embeds');
+const { successEmbed, errorEmbed } = require('../utils/embeds');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -46,83 +46,98 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
-        // Respond immediately to avoid timeout
-        await interaction.reply({ 
-            content: '⏳ Setting up...', 
-            ephemeral: true 
-        });
-
-        // Ensure guild exists in database
-        await db.createGuild(interaction.guildId, interaction.guild.name);
-
-        // Get all the options
-        const gtRole = interaction.options.getRole('gt_role');
-        const historyChannel = interaction.options.getChannel('history_channel');
-        const leagueLogChannel = interaction.options.getChannel('league_log_channel');
-        const signRequestChannel = interaction.options.getChannel('sign_request_channel');
-        const offerAcceptChannel = interaction.options.getChannel('offer_accept_channel');
-        const staffRole = interaction.options.getRole('staff_role');
-        const managerRole = interaction.options.getRole('manager_role');
-        const anchorRole = interaction.options.getRole('anchor_role');
-
-        // Check if at least one option was provided
-        if (!gtRole && !historyChannel && !leagueLogChannel && !signRequestChannel && 
-            !offerAcceptChannel && !staffRole && !managerRole && !anchorRole) {
-            return interaction.editReply({
-                content: null,
-                embeds: [errorEmbed('No Changes', 'Please provide at least one option to configure.')]
+        try {
+            // Respond immediately
+            await interaction.reply({ 
+                content: '⏳ Setting up...', 
+                ephemeral: true 
             });
-        }
 
-        const updates = [];
+            // Ensure guild exists in database
+            await db.createGuild(interaction.guildId, interaction.guild.name);
 
-        // Update channels
-        if (historyChannel) {
-            await db.setGuildChannel(interaction.guildId, 'history', historyChannel.id);
-            updates.push(`📜 History Channel: ${historyChannel}`);
-        }
-        if (leagueLogChannel) {
-            await db.setGuildChannel(interaction.guildId, 'league_log', leagueLogChannel.id);
-            updates.push(`📋 League Log Channel: ${leagueLogChannel}`);
-        }
-        if (signRequestChannel) {
-            await db.setGuildChannel(interaction.guildId, 'sign_request', signRequestChannel.id);
-            updates.push(`✍️ Sign Request Channel: ${signRequestChannel}`);
-        }
-        if (offerAcceptChannel) {
-            await db.setGuildChannel(interaction.guildId, 'offer_accept', offerAcceptChannel.id);
-            updates.push(`✅ Offer Accept Channel: ${offerAcceptChannel}`);
-        }
+            // Get all the options
+            const gtRole = interaction.options.getRole('gt_role');
+            const historyChannel = interaction.options.getChannel('history_channel');
+            const leagueLogChannel = interaction.options.getChannel('league_log_channel');
+            const signRequestChannel = interaction.options.getChannel('sign_request_channel');
+            const offerAcceptChannel = interaction.options.getChannel('offer_accept_channel');
+            const staffRole = interaction.options.getRole('staff_role');
+            const managerRole = interaction.options.getRole('manager_role');
+            const anchorRole = interaction.options.getRole('anchor_role');
 
-        // Update roles
-        if (gtRole) {
-            await db.setGuildRole(interaction.guildId, 'gt_role', gtRole.id);
-            updates.push(`🎮 Game Time Role: ${gtRole}`);
-        }
-        if (staffRole) {
-            await db.setGuildRole(interaction.guildId, 'staff', staffRole.id);
-            updates.push(`👮 Staff Role: ${staffRole}`);
-        }
-        if (managerRole) {
-            await db.setGuildRole(interaction.guildId, 'manager', managerRole.id);
-            updates.push(`👑 Manager Role: ${managerRole}`);
-        }
-        if (anchorRole) {
-            await db.setGuildRole(interaction.guildId, 'anchor', anchorRole.id);
-            updates.push(`⚓ Anchor Role: ${anchorRole}`);
-        }
+            // Check if at least one option was provided
+            if (!gtRole && !historyChannel && !leagueLogChannel && !signRequestChannel && 
+                !offerAcceptChannel && !staffRole && !managerRole && !anchorRole) {
+                return interaction.editReply({
+                    content: null,
+                    embeds: [errorEmbed('No Changes', 'Please provide at least one option to configure.')]
+                });
+            }
 
-        // Mark setup as completed
-        await db.updateGuildSetup(interaction.guildId, true);
+            const updates = [];
 
-        const embed = successEmbed(
-            '✅ Setup Updated',
-            `Successfully updated bot configuration:\n\n${updates.join('\n')}`
-        );
+            // Update channels
+            if (historyChannel) {
+                await db.setGuildChannel(interaction.guildId, 'history', historyChannel.id);
+                updates.push(`📜 History Channel: ${historyChannel}`);
+            }
+            if (leagueLogChannel) {
+                await db.setGuildChannel(interaction.guildId, 'league_log', leagueLogChannel.id);
+                updates.push(`📋 League Log Channel: ${leagueLogChannel}`);
+            }
+            if (signRequestChannel) {
+                await db.setGuildChannel(interaction.guildId, 'sign_request', signRequestChannel.id);
+                updates.push(`✍️ Sign Request Channel: ${signRequestChannel}`);
+            }
+            if (offerAcceptChannel) {
+                await db.setGuildChannel(interaction.guildId, 'offer_accept', offerAcceptChannel.id);
+                updates.push(`✅ Offer Accept Channel: ${offerAcceptChannel}`);
+            }
 
-        await interaction.editReply({ 
-            content: null,
-            embeds: [embed] 
-        });
+            // Update roles
+            if (gtRole) {
+                await db.setGuildRole(interaction.guildId, 'gt_role', gtRole.id);
+                updates.push(`🎮 Game Time Role: ${gtRole}`);
+            }
+            if (staffRole) {
+                await db.setGuildRole(interaction.guildId, 'staff', staffRole.id);
+                updates.push(`👮 Staff Role: ${staffRole}`);
+            }
+            if (managerRole) {
+                await db.setGuildRole(interaction.guildId, 'manager', managerRole.id);
+                updates.push(`👑 Manager Role: ${managerRole}`);
+            }
+            if (anchorRole) {
+                await db.setGuildRole(interaction.guildId, 'anchor', anchorRole.id);
+                updates.push(`⚓ Anchor Role: ${anchorRole}`);
+            }
+
+            // Mark setup as completed
+            await db.updateGuildSetup(interaction.guildId, true);
+
+            const embed = successEmbed(
+                '✅ Setup Updated',
+                `Successfully updated bot configuration:\n\n${updates.join('\n')}`
+            );
+
+            await interaction.editReply({ 
+                content: null,
+                embeds: [embed] 
+            });
+        } catch (error) {
+            console.error('Setup command error:', error);
+            
+            const errorResponse = {
+                content: null,
+                embeds: [errorEmbed('Setup Failed', `An error occurred: ${error.message}`)]
+            };
+            
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply(errorResponse);
+            } else {
+                await interaction.reply({ ...errorResponse, ephemeral: true });
+            }
+        }
     }
 };

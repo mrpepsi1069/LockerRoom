@@ -13,9 +13,17 @@ module.exports = {
                 .setDescription('League abbreviation')
                 .setRequired(true))
         .addStringOption(option =>
-            option.setName('time')
-                .setDescription('Game time (e.g., "2024-12-25 7:30 PM" or timestamp)')
+            option.setName('time1')
+                .setDescription('First time option (e.g., "8 PM EST")')
                 .setRequired(true))
+        .addStringOption(option =>
+            option.setName('time2')
+                .setDescription('Second time option (e.g., "9 PM EST")')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('time3')
+                .setDescription('Third time option')
+                .setRequired(false))
         .addRoleOption(option =>
             option.setName('role')
                 .setDescription('Role to ping')
@@ -31,30 +39,10 @@ module.exports = {
         }
 
         const leagueAbbr = interaction.options.getString('league').toUpperCase();
-        const timeString = interaction.options.getString('time');
+        const time1 = interaction.options.getString('time1');
+        const time2 = interaction.options.getString('time2');
+        const time3 = interaction.options.getString('time3');
         const role = interaction.options.getRole('role');
-
-        // Parse time
-        let gameTime;
-        try {
-            gameTime = new Date(timeString);
-            if (isNaN(gameTime.getTime())) {
-                throw new Error('Invalid date');
-            }
-        } catch (error) {
-            return interaction.reply({
-                embeds: [errorEmbed('Invalid Time', 'Please provide a valid time format.\nExamples: "2024-12-25 7:30 PM" or "December 25, 2024 7:30 PM"')],
-                ephemeral: true
-            });
-        }
-
-        // Check if time is in the past
-        if (gameTime < new Date()) {
-            return interaction.reply({
-                embeds: [errorEmbed('Invalid Time', 'Game time cannot be in the past.')],
-                ephemeral: true
-            });
-        }
 
         // Get league
         const league = await db.getLeagueByAbbr(interaction.guildId, leagueAbbr);
@@ -67,28 +55,28 @@ module.exports = {
 
         await interaction.deferReply();
 
-        // Create embed
-        const embed = gametimeEmbed(league.league_name, gameTime, role.name);
+        // Build time options
+        const timeOptions = [time1];
+        if (time2) timeOptions.push(time2);
+        if (time3) timeOptions.push(time3);
 
-        // Create buttons
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('attendance_yes')
-                    .setLabel('Attending')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('✅'),
-                new ButtonBuilder()
-                    .setCustomId('attendance_maybe')
-                    .setLabel('Maybe')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('❓'),
-                new ButtonBuilder()
-                    .setCustomId('attendance_no')
-                    .setLabel('Not Attending')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('❌')
-            );
+        // Create embed
+        const embed = new (require('discord.js').EmbedBuilder)()
+            .setTitle(`🎮 ${league.league_name} Game Time Poll`)
+            .setDescription(`${role}\n\n**Which time works best for you?**\n\n${timeOptions.map((t, i) => `${i + 1}️⃣ ${t}`).join('\n')}\n\nReact below!`)
+            .setColor('#5865F2')
+            .setTimestamp();
+
+        // Create buttons for each time
+        const buttons = timeOptions.map((time, index) => 
+            new ButtonBuilder()
+                .setCustomId(`gametime_${index}`)
+                .setLabel(time)
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji(`${index + 1}️⃣`)
+        );
+
+        const row = new ActionRowBuilder().addComponents(buttons.slice(0, 5)); // Max 5 buttons
 
         // Send the message
         const message = await interaction.channel.send({
@@ -100,8 +88,8 @@ module.exports = {
         // Save to database
         await db.createGametime(
             interaction.guildId,
-            league.id,
-            gameTime,
+            league._id,
+            new Date(), // Store current time as placeholder
             message.id,
             interaction.channelId,
             role.id,
@@ -119,12 +107,27 @@ module.exports = {
             ephemeral: true
         });
 
-        // TODO: If premium, DM all members with the role
+        // If premium, DM all members with the role
         if (isPremium) {
-            const preferences = await db.getGuildPreferences(interaction.guildId);
-            if (preferences && preferences.auto_dm_gametimes) {
-                // Implementation for auto-DM would go here
-                // Get all members with the role and DM them
+            try {
+                const members = await interaction.guild.members.fetch();
+                const roleMembers = members.filter(m => m.roles.cache.has(role.id) && !m.user.bot);
+                
+                for (const [, member] of roleMembers) {
+                    try {
+                        await member.send({
+                            embeds: [new (require('discord.js').EmbedBuilder)()
+                                .setTitle(`🎮 ${league.league_name} Game Time Poll`)
+                                .setDescription(`A new game time poll has been created in **${interaction.guild.name}**!\n\n**Time Options:**\n${timeOptions.map((t, i) => `${i + 1}️⃣ ${t}`).join('\n')}\n\n[Jump to Poll](${message.url})`)
+                                .setColor('#5865F2')
+                            ]
+                        });
+                    } catch (err) {
+                        console.log(`Could not DM ${member.user.tag}`);
+                    }
+                }
+            } catch (err) {
+                console.error('Error DMing members:', err);
             }
         }
     }

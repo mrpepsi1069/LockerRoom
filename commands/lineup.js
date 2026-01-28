@@ -28,14 +28,15 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('lineup')
                         .setDescription('Lineup name')
-                        .setRequired(true))
+                        .setRequired(true)
+                        .setAutocomplete(true))
                 .addUserOption(option =>
                     option.setName('player')
                         .setDescription('Player to add')
                         .setRequired(true))
                 .addStringOption(option =>
                     option.setName('position')
-                        .setDescription('Player position')
+                        .setDescription('Player position (QB, OL, TE, etc.)')
                         .setRequired(true)))
         .addSubcommand(subcommand =>
             subcommand
@@ -44,7 +45,8 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('lineup')
                         .setDescription('Lineup name')
-                        .setRequired(true))
+                        .setRequired(true)
+                        .setAutocomplete(true))
                 .addUserOption(option =>
                     option.setName('player')
                         .setDescription('Player to remove')
@@ -56,7 +58,8 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('lineup')
                         .setDescription('Lineup name')
-                        .setRequired(true))
+                        .setRequired(true)
+                        .setAutocomplete(true))
                 .addUserOption(option =>
                     option.setName('player')
                         .setDescription('Player to edit')
@@ -72,7 +75,8 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('lineup')
                         .setDescription('Lineup name')
-                        .setRequired(true)))
+                        .setRequired(true)
+                        .setAutocomplete(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('list')
@@ -84,7 +88,8 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('lineup')
                         .setDescription('Lineup name')
-                        .setRequired(true)))
+                        .setRequired(true)
+                        .setAutocomplete(true)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('post')
@@ -92,11 +97,31 @@ module.exports = {
                 .addStringOption(option =>
                     option.setName('lineup')
                         .setDescription('Lineup name')
-                        .setRequired(true))
+                        .setRequired(true)
+                        .setAutocomplete(true))
                 .addChannelOption(option =>
                     option.setName('channel')
                         .setDescription('Channel to post to (defaults to current)')
                         .setRequired(false))),
+    
+    async autocomplete(interaction) {
+        const focusedValue = interaction.options.getFocused();
+        const lineups = await db.getLineups(interaction.guildId);
+        
+        if (!lineups || lineups.length === 0) {
+            return interaction.respond([]);
+        }
+        
+        const filtered = lineups
+            .filter(lineup => lineup.lineup_name.toLowerCase().includes(focusedValue.toLowerCase()))
+            .slice(0, 25) // Discord limit
+            .map(lineup => ({
+                name: lineup.lineup_name,
+                value: lineup.lineup_name
+            }));
+        
+        await interaction.respond(filtered);
+    },
     
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
@@ -156,7 +181,7 @@ async function handleCreate(interaction) {
             embeds: [successEmbed('Lineup Created', `Successfully created lineup **${name}**\nUse \`/lineup add\` to add players.`)]
         });
     } catch (error) {
-        if (error.constraint === 'lineups_guild_id_lineup_name_key') {
+        if (error.message === 'DUPLICATE_LINEUP') {
             await interaction.reply({
                 embeds: [errorEmbed('Lineup Exists', `A lineup named **${name}** already exists.`)],
                 ephemeral: true
@@ -170,7 +195,7 @@ async function handleCreate(interaction) {
 async function handleAdd(interaction) {
     const lineupName = sanitizeInput(interaction.options.getString('lineup'));
     const player = interaction.options.getUser('player');
-    const position = sanitizeInput(interaction.options.getString('position'), 50);
+    const position = sanitizeInput(interaction.options.getString('position'), 50).toUpperCase();
 
     const lineup = await db.getLineup(interaction.guildId, lineupName);
     
@@ -184,7 +209,7 @@ async function handleAdd(interaction) {
     // Ensure user exists in database
     await db.createOrUpdateUser(player.id, player.username);
 
-    await db.addPlayerToLineup(lineup.id, player.id, position);
+    await db.addPlayerToLineup(lineup._id, player.id, position);
 
     await interaction.reply({
         embeds: [successEmbed('Player Added', `Added <@${player.id}> to **${lineupName}** as **${position}**`)]
@@ -204,7 +229,7 @@ async function handleRemove(interaction) {
         });
     }
 
-    await db.removePlayerFromLineup(lineup.id, player.id);
+    await db.removePlayerFromLineup(lineup._id, player.id);
 
     await interaction.reply({
         embeds: [successEmbed('Player Removed', `Removed <@${player.id}> from **${lineupName}**`)]
@@ -214,7 +239,7 @@ async function handleRemove(interaction) {
 async function handleEdit(interaction) {
     const lineupName = sanitizeInput(interaction.options.getString('lineup'));
     const player = interaction.options.getUser('player');
-    const newPosition = sanitizeInput(interaction.options.getString('position'), 50);
+    const newPosition = sanitizeInput(interaction.options.getString('position'), 50).toUpperCase();
 
     const lineup = await db.getLineup(interaction.guildId, lineupName);
     
@@ -225,7 +250,7 @@ async function handleEdit(interaction) {
         });
     }
 
-    await db.addPlayerToLineup(lineup.id, player.id, newPosition);
+    await db.addPlayerToLineup(lineup._id, player.id, newPosition);
 
     await interaction.reply({
         embeds: [successEmbed('Position Updated', `Updated <@${player.id}>'s position to **${newPosition}** in **${lineupName}**`)]
