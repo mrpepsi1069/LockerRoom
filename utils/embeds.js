@@ -106,26 +106,60 @@ function helpEmbed() {
         .addFields(
             {
                 name: '👥 Public',
-                value:
-                    '`/help`\n`/invite`\n`/color`\n`/awardcheck`\n`/flipcoin`\n`/ping`'
+                value: [
+                    '/help',
+                    '/invite',
+                    '/color',
+                    '/awardcheck',
+                    '/suggest',
+                    '/bold',
+                    '/flipcoin',
+                    '/fkick',
+                    '/ping'
+                ].join('\n')
             },
             {
                 name: '👮 Staff',
-                value:
-                    '`/mutevc`\n`/unmutevc`\n`/dmtcmembers`'
+                value: [
+                    '/mutevc',
+                    '/unmutevc',
+                    '/dmtcmembers'
+                ].join('\n')
             },
             {
                 name: '👑 Manager',
-                value:
-                    '`/gametime`\n`/league-add`\n`/lineup`\n`/lineups`\n`/activitycheck`'
+                value: [
+                    '/gametime',
+                    '/times',
+                    '/league-add',
+                    '/lineup',
+                    '/lineups',
+                    '/ring-add',
+                    '/award',
+                    '/activitycheck'
+                ].join('\n')
             },
             {
                 name: '🔧 Admin',
-                value:
-                    '`/setup`\n`/change-botname`\n`/change-pfp`\n`/change-description`'
+                value: [
+                    '/setup',
+                    '/change-botname',
+                    '/change-pfp',
+                    '/change-description'
+                ].join('\n')
+            },
+            {
+                name: '👑 Bot Owner',
+                value: [
+                    '/add-premium',
+                    '/revoke-premium',
+                    '/premium',
+                    '/guilds',
+                    '/botstats'
+                ].join('\n')
             }
         )
-        .setColor(COLORS.primary)
+        .setColor(config.colors.primary ?? 0x5865F2)
         .setFooter({ text: 'LockerRoom Bot • By Ghostie' })
         .setTimestamp();
 }
