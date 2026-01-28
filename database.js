@@ -28,34 +28,21 @@ async function initialize() {
 }
 
 async function createIndexes() {
-    // Guild indexes
-    await db.collection('guilds').createIndex({ guild_id: 1 }, { unique: true });
+    if (!db) return;
 
-    await db.createGametimeRSVP({
-        guildId: interaction.guildId,
-        channelId: interaction.channelId,
-        messageId: message.id,
-        league,
-        time,
-        yes: [],
-        no: [],
-        unsure: []
-    });
-    
-    // League indexes
+    await db.collection('guilds').createIndex({ guild_id: 1 }, { unique: true });
     await db.collection('leagues').createIndex({ guild_id: 1, league_abbr: 1 }, { unique: true });
-    
-    // Lineup indexes
     await db.collection('lineups').createIndex({ guild_id: 1, lineup_name: 1 }, { unique: true });
-    
-    // User indexes
     await db.collection('users').createIndex({ user_id: 1 }, { unique: true });
-    
-    // Championship rings indexes
-    await db.collection('championship_rings').createIndex({ guild_id: 1, league_id: 1, user_id: 1, season: 1 }, { unique: true });
-    
-    // Awards indexes
-    await db.collection('awards').createIndex({ guild_id: 1, league_id: 1, user_id: 1, award_name: 1, season: 1 }, { unique: true });
+    await db.collection('championship_rings').createIndex(
+        { guild_id: 1, league_id: 1, user_id: 1, season: 1 },
+        { unique: true }
+    );
+    await db.collection('awards').createIndex(
+        { guild_id: 1, league_id: 1, user_id: 1, award_name: 1, season: 1 },
+        { unique: true }
+    );
+    await db.collection('gametime_rsvps').createIndex({ messageId: 1 }, { unique: true });
 }
 
 // ============================================
@@ -569,8 +556,6 @@ async function createGametimeRSVP(data) {
     });
 }
 
-
-
 async function getGametimeRSVP(messageId) {
     if (!db) return null;
     return await db.collection('gametime_rsvps').findOne({ messageId });
@@ -583,6 +568,7 @@ async function updateGametimeRSVP(messageId, update) {
         { $set: update }
     );
 }
+
 
 
 module.exports = {
