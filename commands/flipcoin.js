@@ -12,7 +12,7 @@ module.exports = {
         const result = Math.random() < 0.5 ? 'Heads' : 'Tails';
 
         const embed = new EmbedBuilder()
-            .setTitle(`${emoji} ${result}!`)
+            .setTitle(`${result}!`)
             .setDescription(`The coin landed on **${result}**`)
             .setColor(BLURPLE)
             .setTimestamp();
