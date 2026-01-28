@@ -43,7 +43,6 @@ module.exports = {
         const message = await interaction.channel.send({
             content: `${role}`,
             embeds: [embed],
-            components: [row]
         });
         await message.react('✅');
 

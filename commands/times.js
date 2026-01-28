@@ -70,7 +70,6 @@ module.exports = {
         const message = await interaction.channel.send({
             content: `${role}`,
             embeds: [embed],
-            components: [row]
         });
 
         // Add reactions
