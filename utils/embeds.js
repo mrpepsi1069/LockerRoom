@@ -2,8 +2,16 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('../config.json');
 
+/* ---------- SAFE COLOR FALLBACKS ---------- */
+const COLORS = {
+    primary: config?.colors?.primary || 0x5865F2,
+    success: config?.colors?.success || 0x57F287,
+    error: config?.colors?.error || 0xED4245,
+    warning: config?.colors?.warning || 0xFEE75C
+};
+
 /* ---------- Base Embed ---------- */
-function createEmbed(title, description, color = config.colors.primary) {
+function createEmbed(title, description, color = COLORS.primary) {
     return new EmbedBuilder()
         .setTitle(title)
         .setDescription(description)
@@ -12,189 +20,113 @@ function createEmbed(title, description, color = config.colors.primary) {
 }
 
 /* ---------- Status Embeds ---------- */
-function successEmbed(title, description) {
-    return createEmbed(title, description, config.colors.success);
-}
+const successEmbed = (t, d) => createEmbed(t, d, COLORS.success);
+const errorEmbed   = (t, d) => createEmbed(t, d, COLORS.error);
+const warningEmbed = (t, d) => createEmbed(t, d, COLORS.warning);
 
-function errorEmbed(title, description) {
-    return createEmbed(title, description, config.colors.error);
-}
-
-function warningEmbed(title, description) {
-    return createEmbed(title, description, config.colors.warning);
-}
-
-/* ---------- Setup Embeds ---------- */
+/* ---------- Setup ---------- */
 function setupEmbed() {
     return new EmbedBuilder()
-        .setTitle('🔧 LockerRoom Bot Setup Wizard')
-        .setDescription(
-            'This will guide you through configuring the bot for your server.\n' +
-            'You can always reconfigure later using `/setup`.'
-        )
-        .setColor(config.colors.primary)
-        .setFooter({ text: 'Click Continue to start setup' });
+        .setTitle('🔧 LockerRoom Bot Setup')
+        .setDescription('Follow the steps below to configure your server.')
+        .setColor(COLORS.primary);
 }
 
 function setupCompleteEmbed() {
     return new EmbedBuilder()
-        .setTitle('✅ Setup Complete!')
-        .setDescription('Your LockerRoom Bot is ready to go!')
-        .addFields(
-            {
-                name: 'Next Steps',
-                value:
-                    '• Use `/league-add` to post recruitment\n' +
-                    '• Use `/lineup create` to build your roster\n' +
-                    '• Use `/gametime` to schedule your first match'
-            },
-            {
-                name: 'Need Help?',
-                value: 'Use `/help` anytime.'
-            }
-        )
-        .setColor(config.colors.success)
+        .setTitle('✅ Setup Complete')
+        .setDescription('Your server is ready to go!')
+        .setColor(COLORS.success)
         .setTimestamp();
 }
 
-/* ---------- Lineup Embed ---------- */
+/* ---------- Lineups ---------- */
 function lineupEmbed(lineup) {
     const embed = new EmbedBuilder()
         .setTitle(`📋 ${lineup.lineup_name}`)
-        .setColor(config.colors.primary)
+        .setColor(COLORS.primary)
         .setTimestamp();
 
-    if (lineup.description) {
-        embed.setDescription(lineup.description);
-    }
+    if (lineup.description) embed.setDescription(lineup.description);
 
-    if (lineup.players && lineup.players.length > 0) {
-        embed.addFields({
-            name: 'Players',
-            value: lineup.players
-                .map(p => `**${p.position}:** <@${p.user_id}>`)
-                .join('\n')
-        });
-    } else {
-        embed.addFields({ name: 'Players', value: 'No players added yet.' });
-    }
+    embed.addFields({
+        name: 'Players',
+        value: lineup.players?.length
+            ? lineup.players.map(p => `**${p.position}:** <@${p.user_id}>`).join('\n')
+            : 'No players added yet.'
+    });
 
     return embed;
 }
 
-/* ---------- Gametime Embed ---------- */
+/* ---------- Gametime ---------- */
 function gametimeEmbed(league, gameTime, role) {
     return new EmbedBuilder()
         .setTitle(`🎮 ${league} Game Time`)
-        .setDescription(
-            `**Time:** <t:${Math.floor(gameTime.getTime() / 1000)}:F>\n\n` +
-            'React below to confirm attendance!'
-        )
-        .addFields(
-            { name: '✅ Attending', value: 'None yet', inline: true },
-            { name: '❓ Maybe', value: 'None yet', inline: true },
-            { name: '❌ Not Attending', value: 'None yet', inline: true }
-        )
-        .setColor(config.colors.primary)
+        .setDescription(`**Time:** <t:${Math.floor(gameTime.getTime() / 1000)}:F>`)
+        .setColor(COLORS.primary)
         .setFooter({ text: `Pinging: @${role}` })
         .setTimestamp();
 }
 
-/* ---------- Awards Embed ---------- */
+/* ---------- Awards ---------- */
 function awardsEmbed(user, awards) {
     const embed = new EmbedBuilder()
-        .setTitle(`${config.emojis.trophy} ${user.username}'s Awards`)
-        .setColor(config.colors.primary)
+        .setTitle(`🏆 ${user.username}'s Awards`)
+        .setColor(COLORS.primary)
         .setTimestamp();
+
+    if (!awards?.rings?.length && !awards?.awards?.length) {
+        embed.setDescription('No awards yet.');
+        return embed;
+    }
 
     if (awards.rings?.length) {
         embed.addFields({
-            name: 'Championship Rings',
-            value: awards.rings
-                .map(r =>
-                    `${config.emojis.ring} **${r.league}** - ${r.season}` +
-                    (r.opponent ? ` (vs ${r.opponent})` : '')
-                )
-                .join('\n')
+            name: 'Rings',
+            value: awards.rings.map(r => `💍 ${r.league} ${r.season}`).join('\n')
         });
     }
 
     if (awards.awards?.length) {
         embed.addFields({
-            name: 'Individual Awards',
-            value: awards.awards
-                .map(a =>
-                    `${config.emojis.trophy} **${a.award}** - ${a.league} ${a.season}`
-                )
-                .join('\n')
+            name: 'Awards',
+            value: awards.awards.map(a => `🏆 ${a.award}`).join('\n')
         });
-    }
-
-    if (!awards.rings?.length && !awards.awards?.length) {
-        embed.setDescription('No awards or rings yet. Keep grinding!');
     }
 
     return embed;
 }
 
-/* ---------- HELP EMBED (FINAL VERSION) ---------- */
+/* ---------- HELP (CRASH-PROOF) ---------- */
 function helpEmbed() {
     return new EmbedBuilder()
-        .setTitle('🤖 LockerRoom Bot Commands')
-        .setDescription('Team chat bot for league teams')
+        .setTitle('🤖 LockerRoom Commands')
+        .setDescription('Team management & league tools')
         .addFields(
             {
-                name: '👥 Public Commands',
+                name: '👥 Public',
                 value:
-                    '`/help` - Display this menu\n' +
-                    '`/invite` - Get bot invite\n' +
-                    '`/color` - Set custom name color\n' +
-                    '`/awardcheck` - View player awards\n' +
-                    '`/suggest` - Submit suggestion\n' +
-                    '`/flipcoin` - Flip a coin\n' +
-                    '`/bold` - Boldify text\n' +
-                    '`/fban` - Fake ban\n' +
-                    '`/fkick` - Fake kick\n' +
-                    '`/ping` - Check bot latency'
+                    '`/help`\n`/invite`\n`/color`\n`/awardcheck`\n`/flipcoin`\n`/ping`'
             },
             {
-                name: '👮 Staff Commands',
+                name: '👮 Staff',
                 value:
-                    '`/mutevc` - Mute voice channel\n' +
-                    '`/unmutevc` - Unmute voice channel\n' +
-                    '`/helptc` - TeamChat help\n' +
-                    '`/dmtcmembers` - DM members'
+                    '`/mutevc`\n`/unmutevc`\n`/dmtcmembers`'
             },
             {
-                name: '👑 Manager Commands',
+                name: '👑 Manager',
                 value:
-                    '`/gametime` - Create game time poll\n' +
-                    '`/times` - Multiple time options\n' +
-                    '`/league-add` - Post recruitment\n' +
-                    '`/ring-add` - Grant rings\n' +
-                    '`/award` - Give awards\n' +
-                    '`/lineup` - Manage lineups\n' +
-                    '`/lineups` - View all lineups\n' +
-                    '`/activitycheck` - Set activity check'
+                    '`/gametime`\n`/league-add`\n`/lineup`\n`/lineups`\n`/activitycheck`'
             },
             {
-                name: '🔧 Admin Commands',
+                name: '🔧 Admin',
                 value:
-                    '`/setup` - Configure bot\n' +
-                    '`/change-pfp` - Change bot picture *(Premium)*\n' +
-                    '`/change-botname` - Change bot name *(Premium)*\n' +
-                    '`/change-description` - Change bot description *(Premium)*'
-            },
-            {
-                name: '👑 Bot Owner',
-                value:
-                    '`/add-premium` - Add Premium to a guild\n' +
-                    '`/revoke-premium` - Revoke Premium from a guild\n' +
-                    '`/guilds` - View all guilds & invites'
+                    '`/setup`\n`/change-botname`\n`/change-pfp`\n`/change-description`'
             }
         )
-        .setColor(config.colors.primary)
-        .setFooter({ text: 'Use /purchase for Premium features • By Ghostie' })
+        .setColor(COLORS.primary)
+        .setFooter({ text: 'LockerRoom Bot • By Ghostie' })
         .setTimestamp();
 }
 
