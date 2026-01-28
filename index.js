@@ -1,171 +1,185 @@
-// index.js - Main bot entry point
-require(‘dotenv’).config();
-const { Client, GatewayIntentBits, Collection, Events, ActivityType } = require(‘discord.js’);
-const fs = require(‘fs’);
-const path = require(‘path’);
-const db = require(’./database’);
+// index.js
+require('dotenv').config();
+const { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+const db = require('./database');
+const http = require('http');
 
 const client = new Client({
-intents: [
-GatewayIntentBits.Guilds,
-GatewayIntentBits.GuildMessages,
-GatewayIntentBits.GuildVoiceStates,
-GatewayIntentBits.GuildMembers,
-GatewayIntentBits.MessageContent,
-]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.MessageContent,
+    ]
 });
 
-// Command collection
 client.commands = new Collection();
 
-// Load commands
-const commandsPath = path.join(__dirname, ‘commands’);
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(’.js’));
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-const filePath = path.join(commandsPath, file);
-const command = require(filePath);
-
-```
-if ('data' in command && 'execute' in command) {
-    client.commands.set(command.data.name, command);
-    console.log(`✅ Loaded command: ${command.data.name}`);
-} else {
-    console.log(`⚠️ Warning: ${file} is missing required "data" or "execute" property.`);
-}
-```
-
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        console.log(`✅ Loaded command: ${command.data.name}`);
+    }
 }
 
-// Bot ready event
 client.once(Events.ClientReady, async () => {
-console.log(`\n🤖 ${client.user.tag} is online!`);
-console.log(`📊 Serving ${client.guilds.cache.size} servers`);
-console.log(`👥 Watching ${client.users.cache.size} users\n`);
-
-```
-// Set bot status
-client.user.setActivity('your team | /help', { type: ActivityType.Watching });
-
-// Initialize database connection
-await db.initialize();
-```
-
+    console.log(`🤖 ${client.user.tag} is online`);
+    console.log(`📊 Servers: ${client.guilds.cache.size}`);
+    client.user.setActivity('your team | /help', { type: ActivityType.Watching });
+    await db.initialize();
 });
 
-// Interaction handler
 client.on(Events.InteractionCreate, async interaction => {
-// Handle autocomplete
-if (interaction.isAutocomplete()) {
-const command = client.commands.get(interaction.commandName);
-if (!command || !command.autocomplete) return;
+    if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) return;
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error(`Autocomplete error:`, error);
+        }
+        return;
+    }
+    
+    if (interaction.isButton()) {
+        if (interaction.customId.startsWith('gametime_')) {
+            await handleGametimeButton(interaction);
+        } else if (interaction.customId.startsWith('times_')) {
+            await handleTimesButton(interaction);
+        }
+        return;
+    }
+    
+    if (!interaction.isChatInputCommand()) return;
 
-```
+    const command = client.commands.get(interaction.commandName);
+    if (!command) return;
+
     try {
-        await command.autocomplete(interaction);
+        if (db) {
+            await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
+        }
+        await command.execute(interaction);
     } catch (error) {
-        console.error(`Autocomplete error for ${interaction.commandName}:`, error);
+        console.error(`❌ Command error:`, error);
+        const errorMessage = { content: '❌ Error executing command!', ephemeral: true };
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(errorMessage);
+        } else {
+            await interaction.reply(errorMessage);
+        }
     }
-    return;
-}
-
-// Handle button interactions
-if (interaction.isButton()) {
-    if (interaction.customId.startsWith('gametime_')) {
-        await handleGametimeButton(interaction);
-    }
-    return;
-}
-
-if (!interaction.isChatInputCommand()) return;
-
-console.log(`\n📨 Command received: /${interaction.commandName} from ${interaction.user.tag}`);
-
-const command = client.commands.get(interaction.commandName);
-
-if (!command) {
-    console.error(`❌ Command ${interaction.commandName} not found.`);
-    return;
-}
-
-try {
-    // Log command usage (only if DB is connected)
-    if (db) {
-        await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
-    }
-    
-    console.log(`⚙️ Executing command: ${interaction.commandName}`);
-    
-    // Execute command
-    await command.execute(interaction);
-    
-    console.log(`✅ Command completed: ${interaction.commandName}`);
-} catch (error) {
-    console.error(`❌ Error executing ${interaction.commandName}:`, error);
-    
-    const errorMessage = {
-        content: '❌ There was an error executing this command!',
-        ephemeral: true
-    };
-    
-    if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(errorMessage);
-    } else {
-        await interaction.reply(errorMessage);
-    }
-}
-```
-
 });
 
-// Guild join event
 client.on(Events.GuildCreate, async guild => {
-console.log(`✅ Joined new guild: ${guild.name} (${guild.id})`);
-
-```
-// Create guild entry in database
-await db.createGuild(guild.id, guild.name);
-```
-
+    console.log(`✅ Joined: ${guild.name}`);
+    await db.createGuild(guild.id, guild.name);
 });
 
-// Guild leave event
-client.on(Events.GuildDelete, async guild => {
-console.log(`❌ Left guild: ${guild.name} (${guild.id})`);
-});
-
-// Error handling
-process.on(‘unhandledRejection’, error => {
-console.error(‘Unhandled promise rejection:’, error);
-});
-
-process.on(‘uncaughtException’, error => {
-console.error(‘Uncaught exception:’, error);
-process.exit(1);
-});
-
-// Create a simple HTTP server for Render (free tier requirement)
-const http = require(‘http’);
 const PORT = process.env.PORT || 3000;
-
 const server = http.createServer((req, res) => {
-if (req.url === ‘/’) {
-res.writeHead(200, { ‘Content-Type’: ‘application/json’ });
-res.end(JSON.stringify({
-status: ‘online’,
-bot: client.user?.tag || ‘Starting…’,
-guilds: client.guilds.cache.size,
-uptime: process.uptime()
-}));
-} else {
-res.writeHead(404);
-res.end(‘Not Found’);
-}
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+        status: 'online',
+        bot: client.user?.tag || 'Starting',
+        guilds: client.guilds.cache.size
+    }));
 });
 
 server.listen(PORT, () => {
-console.log(`🌐 HTTP server listening on port ${PORT}`);
+    console.log(`🌐 HTTP server on ${PORT}`);
 });
 
-// Login
+process.on('unhandledRejection', error => console.error('Error:', error));
+
+async function handleGametimeButton(interaction) {
+    const response = interaction.customId.split('_')[1];
+    const message = interaction.message;
+    const embed = message.embeds[0];
+    if (!embed) return;
+
+    const canMakeField = embed.fields[0];
+    const cantMakeField = embed.fields[1];
+    const unsureField = embed.fields[2];
+
+    let canMake = canMakeField.value === '• None yet' ? [] : canMakeField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
+    let cantMake = cantMakeField.value === '• None yet' ? [] : cantMakeField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
+    let unsure = unsureField.value === '• None yet' ? [] : unsureField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
+
+    const username = interaction.member.displayName;
+    canMake = canMake.filter(u => u !== username);
+    cantMake = cantMake.filter(u => u !== username);
+    unsure = unsure.filter(u => u !== username);
+
+    if (response === 'yes') canMake.push(username);
+    else if (response === 'no') cantMake.push(username);
+    else if (response === 'unsure') unsure.push(username);
+
+    const formatList = (list) => list.length > 0 ? list.map(u => `• ${u}`).join('\n') : '• None yet';
+    const newEmbed = EmbedBuilder.from(embed).setFields(
+        { name: `✅ Can Make (${canMake.length})`, value: formatList(canMake), inline: false },
+        { name: `❌ Can't Make (${cantMake.length})`, value: formatList(cantMake), inline: false },
+        { name: `❓ Unsure (${unsure.length})`, value: formatList(unsure), inline: false }
+    );
+
+    await message.edit({ embeds: [newEmbed] });
+    await interaction.reply({ 
+        content: `✅ Response recorded: **${response === 'yes' ? 'Can Make' : response === 'no' ? 'Can\'t Make' : 'Unsure'}**`, 
+        ephemeral: true 
+    });
+}
+
+async function handleTimesButton(interaction) {
+    const parts = interaction.customId.split('_');
+    const timeIndex = parts[1];
+    const selectedTime = parts.slice(2).join('_');
+    const message = interaction.message;
+    const embed = message.embeds[0];
+    if (!embed) return;
+
+    const username = interaction.member.displayName;
+    let description = embed.description;
+    const lines = description.split('\n');
+    const timeSections = [];
+    let currentTime = null;
+    let currentUsers = [];
+    
+    for (const line of lines) {
+        if (line.startsWith('🕐 **')) {
+            if (currentTime) timeSections.push({ time: currentTime, users: currentUsers });
+            currentTime = line.replace('🕐 **', '').replace('**', '');
+            currentUsers = [];
+        } else if (line.startsWith('• ') && currentTime) {
+            const users = line.substring(2).split('• ').map(u => u.trim()).filter(u => u && u !== 'None yet');
+            currentUsers = users;
+        }
+    }
+    if (currentTime) timeSections.push({ time: currentTime, users: currentUsers });
+    
+    timeSections.forEach(section => {
+        section.users = section.users.filter(u => u !== username);
+    });
+    if (timeSections[timeIndex]) timeSections[timeIndex].users.push(username);
+    
+    const leagueLine = lines[0];
+    let newDescription = leagueLine + '\n\n';
+    timeSections.forEach(section => {
+        newDescription += `🕐 **${section.time}**\n`;
+        newDescription += section.users.length > 0 ? `• ${section.users.join(' • ')}\n\n` : `• None yet\n\n`;
+    });
+    
+    const newEmbed = EmbedBuilder.from(embed).setDescription(newDescription.trim());
+    await message.edit({ embeds: [newEmbed] });
+    await interaction.reply({ content: `✅ Selected time: **${selectedTime}**`, ephemeral: true });
+}
+
 client.login(process.env.DISCORD_TOKEN);
