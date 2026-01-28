@@ -546,6 +546,32 @@ async function setPremium(guildId, isPremium, expiresAt = null) {
     );
 }
 
+// ================================
+// GAMETIME RSVP SYSTEM
+// ================================
+
+async function createGametimeRSVP(data) {
+    if (!db) return null;
+    await db.collection('gametime_rsvps').insertOne({
+        ...data,
+        created_at: new Date()
+    });
+}
+
+async function getGametimeRSVP(messageId) {
+    if (!db) return null;
+    return await db.collection('gametime_rsvps').findOne({ messageId });
+}
+
+async function updateGametimeRSVP(messageId, update) {
+    if (!db) return;
+    await db.collection('gametime_rsvps').updateOne(
+        { messageId },
+        { $set: update }
+    );
+}
+
+
 module.exports = {
     initialize,
     
