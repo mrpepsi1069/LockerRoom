@@ -12,6 +12,10 @@ module.exports = {
             option.setName('league')
                 .setDescription('League abbreviation')
                 .setRequired(true))
+        .addRoleOption(option =>
+            option.setName('role')
+                .setDescription('Role to ping')
+                .setRequired(true))
         .addStringOption(option =>
             option.setName('time1')
                 .setDescription('First time option (e.g., "8 PM EST")')
@@ -23,11 +27,7 @@ module.exports = {
         .addStringOption(option =>
             option.setName('time3')
                 .setDescription('Third time option')
-                .setRequired(false))
-        .addRoleOption(option =>
-            option.setName('role')
-                .setDescription('Role to ping')
-                .setRequired(true)),
+                .setRequired(false)),
     
     async execute(interaction) {
         // Check permissions
