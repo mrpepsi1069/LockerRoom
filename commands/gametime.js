@@ -74,7 +74,7 @@ module.exports = {
 
         await db.createGametime(
             interaction.guildId,
-            time,
+            null,
             new Date(),
             message.id,
             interaction.channelId,
