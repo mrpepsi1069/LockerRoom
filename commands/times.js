@@ -67,7 +67,11 @@ module.exports = {
             .setColor('#5865F2')
             .setTimestamp();
 
-        const message = await interaction.channel.send({ embeds: [embed] });
+        const message = await interaction.channel.send({
+            content: `${role}`,
+            embeds: [embed],
+            components: [row]
+        });
 
         // Add reactions
         const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];

@@ -231,26 +231,30 @@ async function addChampionshipRing(guildId, leagueId, userId, season, opponent, 
 
 async function addAward(guildId, leagueId, userId, awardName, season, awardedBy) {
     if (!db) return null;
+
+    if (!guildId || !leagueId || !userId || !awardName || !season) {
+        return null;
+    }
+
     try {
         const award = {
-            guild_id: guildId,
-            league_id: leagueId.toString(),
-            user_id: userId,
-            award_name: awardName,
-            season: season,
-            awarded_by: awardedBy,
+            guild_id: String(guildId),
+            league_id: String(leagueId),
+            user_id: String(userId),
+            award_name: String(awardName),
+            season: String(season),
+            awarded_by: String(awardedBy),
             awarded_at: new Date()
         };
-        
+
         const result = await db.collection('awards').insertOne(award);
         return { ...award, _id: result.insertedId };
     } catch (error) {
-        if (error.code === 11000) { // Duplicate key
-            return null;
-        }
+        if (error.code === 11000) return null;
         throw error;
     }
 }
+
 
 async function getUserAwards(guildId, userId) {
     if (!db) return null;

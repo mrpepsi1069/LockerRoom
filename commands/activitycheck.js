@@ -40,7 +40,11 @@ module.exports = {
             .setColor('#57F287')
             .setTimestamp();
 
-        const message = await interaction.channel.send({ embeds: [embed] });
+        const message = await interaction.channel.send({
+            content: `${role}`,
+            embeds: [embed],
+            components: [row]
+        });
         await message.react('✅');
 
         // Save to database
