@@ -402,11 +402,25 @@ async function deleteLineup(guildId, lineupName) {
 // GAMETIME FUNCTIONS
 // ============================================
 
+if (!leagueId) {
+    throw new Error('Invalid leagueId passed to createGametime');
+}
+
+if (!league || !league._id) {
+    return interaction.editReply({
+        embeds: [errorEmbed(
+            'League Error',
+            'This league is missing an ID. Please re-create the league.'
+        )],
+        ephemeral: true
+    });
+}
+
 async function createGametime(guildId, leagueId, gameTime, messageId, channelId, pingRoleId, createdBy) {
     if (!db) return null;
     const gametime = {
         guild_id: guildId,
-        league_id: leagueId.toString(),
+        league_id: String(leagueId),
         game_time: gameTime,
         message_id: messageId,
         channel_id: channelId,
