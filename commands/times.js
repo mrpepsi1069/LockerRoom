@@ -72,7 +72,7 @@ module.exports = {
 
         // Create embed
         const embed = new EmbedBuilder()
-            .setTitle('⏰ Pick a time for gametime nigger')
+            .setTitle('⏰ Pick a time for gametime')
             .setDescription(description.trim())
             .setColor('#5865F2')
             .setFooter({ text: 'LockerRoom | Gametime Manager • You can select multiple times' })
@@ -124,26 +124,31 @@ module.exports = {
                 }
             });
 
-            // Update buttons to show selected state
-            const updatedButtons = times.map((time, idx) => 
-                new ButtonBuilder()
-                    .setCustomId(`times_${idx}_${time}`)
-                    .setLabel(time)
-                    .setStyle(selections[idx].has(userId) ? ButtonStyle.Success : ButtonStyle.Primary)
-            );
-
-            const updatedRow = new ActionRowBuilder().addComponents(updatedButtons);
-
             const updatedEmbed = new EmbedBuilder()
-                .setTitle('⏰ Pick a time for gametime nigger')
+                .setTitle('⏰ Pick a time for gametime')
                 .setDescription(newDescription.trim())
                 .setColor('#5865F2')
                 .setFooter({ text: 'LockerRoom | Gametime Manager • You can select multiple times' })
                 .setTimestamp();
 
-            await i.update({
+            // Update the original message for everyone
+            await message.edit({
                 embeds: [updatedEmbed],
-                components: [updatedRow]
+                components: [row]  // Keep original buttons
+            });
+
+            // Send ephemeral response to show the user's selections
+            const userSelections = times
+                .map((time, idx) => selections[idx].has(userId) ? time : null)
+                .filter(Boolean);
+            
+            const responseMessage = userSelections.length > 0
+                ? `✅ Your selected times: ${userSelections.join(', ')}`
+                : `ℹ️ You haven't selected any times yet.`;
+
+            await i.reply({
+                content: responseMessage,
+                ephemeral: true
             });
         });
 
@@ -152,4 +157,3 @@ module.exports = {
         });
     }
 };
-
