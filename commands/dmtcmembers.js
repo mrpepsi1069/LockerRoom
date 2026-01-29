@@ -18,7 +18,6 @@ module.exports = {
                 .setMaxLength(1000)),
 
     async execute(interaction) {
-        // Permission check
         if (!await hasStaffPerms(interaction)) {
             return interaction.reply({
                 embeds: [errorEmbed('Permission Denied', 'You need Staff role or higher to use this command.')],
@@ -26,7 +25,6 @@ module.exports = {
             });
         }
 
-        // Premium check
         const isPremium = await checkPremium(interaction.guildId);
         if (!isPremium) {
             return interaction.reply({
@@ -38,14 +36,15 @@ module.exports = {
         const role = interaction.options.getRole('role');
         const message = interaction.options.getString('message');
 
-        const channelLink = `https://discord.com/channels/${interaction.guild.id}/${interaction.channel.id}`;
+        // Clickable links
+        const userLink = `https://discord.com/users/${interaction.user.id}`;
+        const serverLink = `https://discord.com/channels/${interaction.guild.id}`;
 
         const dmMessage =
 `**Message:** ${message}
 
-• **Sent By:** @${interaction.user.tag}
-• **Server:** ${interaction.guild.name}
-• **Channel:** ${channelLink}`;
+• **Sent By:** [${interaction.user.tag}](${userLink})
+• **Server:** [${interaction.guild.name}](${serverLink})`;
 
         await interaction.deferReply({ ephemeral: true });
 
