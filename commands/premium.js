@@ -18,12 +18,12 @@ module.exports = {
                 },
                 {
                     name: '💰 Pricing Plans',
-                    value: '**Monthly** - $1/month\n**6 Months** - $5 (Save $1!)\n**Lifetime** - $10 (Best Value!)',
+                    value: '**Monthly** - $1/month\n**6 Months** - $5 (Save $1!)\n**Lifetime** - $10 (Best Value!)\n**Custom Commands** - $1-5 (Based on complexity)',
                     inline: false
                 },
                 {
                     name: '💳 Payment Methods',
-                    value: '• CashApp\n• PayPal',
+                    value: '• CashApp\n• PayPal\n• Robux',
                     inline: false
                 },
                 {
