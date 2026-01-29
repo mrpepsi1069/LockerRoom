@@ -58,6 +58,12 @@ module.exports = {
 
         await interaction.deferReply({ ephemeral: true });
 
+        // Initialize selections storage
+        const selections = {};
+        times.forEach((time, index) => {
+            selections[index] = new Set();
+        });
+
         // Build embed description with time sections
         let description = `**League:** ${league}\n\n`;
         times.forEach(time => {
@@ -66,10 +72,10 @@ module.exports = {
 
         // Create embed
         const embed = new EmbedBuilder()
-            .setTitle('⏰ Gametime Scheduled')
+            .setTitle('⏰ Pick a time for gametime nigger')
             .setDescription(description.trim())
             .setColor('#5865F2')
-            .setFooter({ text: 'LockerRoom | Gametime Manager' })
+            .setFooter({ text: 'LockerRoom | Gametime Manager • You can select multiple times' })
             .setTimestamp();
 
         // Create buttons for each time (max 5)
@@ -89,8 +95,60 @@ module.exports = {
             components: [row]
         });
 
+        // Store the message data for the collector
+        const collector = message.createMessageComponentCollector({ 
+            time: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        collector.on('collect', async i => {
+            const [cmd, timeIndex, timeLabel] = i.customId.split('_');
+            const userId = i.user.id;
+            const index = parseInt(timeIndex);
+
+            // Toggle user selection
+            if (selections[index].has(userId)) {
+                selections[index].delete(userId);
+            } else {
+                selections[index].add(userId);
+            }
+
+            // Update embed description
+            let newDescription = `**League:** ${league}\n\n`;
+            times.forEach((time, idx) => {
+                newDescription += `🕐 **${time}**\n`;
+                if (selections[idx].size === 0) {
+                    newDescription += `• None yet\n\n`;
+                } else {
+                    const users = Array.from(selections[idx]).map(id => `<@${id}>`).join(', ');
+                    newDescription += `• ${users}\n\n`;
+                }
+            });
+
+            // Update buttons to show selected state
+            const updatedButtons = times.map((time, idx) => 
+                new ButtonBuilder()
+                    .setCustomId(`times_${idx}_${time}`)
+                    .setLabel(time)
+                    .setStyle(selections[idx].has(userId) ? ButtonStyle.Success : ButtonStyle.Primary)
+            );
+
+            const updatedRow = new ActionRowBuilder().addComponents(updatedButtons);
+
+            const updatedEmbed = new EmbedBuilder()
+                .setTitle('⏰ Pick a time for gametime nigger')
+                .setDescription(newDescription.trim())
+                .setColor('#5865F2')
+                .setFooter({ text: 'LockerRoom | Gametime Manager • You can select multiple times' })
+                .setTimestamp();
+
+            await i.update({
+                embeds: [updatedEmbed],
+                components: [updatedRow]
+            });
+        });
+
         await interaction.editReply({
-            embeds: [successEmbed('Times Poll Created', `Successfully created times poll for **${league}**`)]
+            embeds: [successEmbed('Times Poll Created', `Successfully created times poll for **${league}**\nPlayers can select multiple time options.`)]
         });
     }
 };
