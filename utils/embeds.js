@@ -136,7 +136,13 @@ function helpEmbed() {
 /league-add - Post recruitment
 /ring-add - Grant rings
 /award - Give awards
-/lineup - Manage lineups
+/lineup-create - Create a new lineup
+/lineup-view - View a specific lineup
+/lineup-edit - Edit a player position in a lineup
+/lineup-delete - Delete a lineup
+/lineup-add - Add a player to a lineup
+/lineup-remove - Remove a player from a lineup
+/lineup-post - Post a lineup to a channel
 /lineups - View all lineups
 /activitycheck - Set activity check`
             },
@@ -144,11 +150,10 @@ function helpEmbed() {
                 name: '🔧 Admin Commands',
                 value:
 `/setup - Configure bot
-/change-pfp - Change bot picture (Premium)
+/change-pfp - (disabled) Change bot picture (Premium)
 /change-botname - Change bot name (Premium)
-/change-description - Change bot description (Premium)
 
-Bot Owner:
+Bot Owner (only accessed by ghostie):
 /add-premium - Add Premium to a guild
 /revoke-premium - Revoke Premium from a guild
 /guilds - View all guilds and invite links`
