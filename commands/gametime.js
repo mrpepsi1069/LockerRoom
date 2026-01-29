@@ -24,7 +24,7 @@ module.exports = {
     async execute(interaction) {
         if (!await hasManagerPerms(interaction)) {
             return interaction.reply({ 
-                embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher.')], 
+                embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')], 
                 ephemeral: true 
             });
         }
