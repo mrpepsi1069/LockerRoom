@@ -85,6 +85,11 @@ client.on(Events.GuildCreate, async guild => {
     await db.createGuild(guild.id, guild.name);
 });
 
+// Error handling for client
+client.on('error', error => {
+    console.error('❌ Discord client error:', error);
+});
+
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -99,7 +104,8 @@ server.listen(PORT, () => {
     console.log(`🌐 HTTP server on ${PORT}`);
 });
 
-process.on('unhandledRejection', error => console.error('Error:', error));
+process.on('unhandledRejection', error => console.error('❌ Unhandled rejection:', error));
+process.on('uncaughtException', error => console.error('❌ Uncaught exception:', error));
 
 async function handleGametimeButton(interaction) {
     const response = interaction.customId.split('_')[1];
@@ -182,4 +188,14 @@ async function handleTimesButton(interaction) {
     await interaction.reply({ content: `✅ Selected time: **${selectedTime}**`, ephemeral: true });
 }
 
-client.login(process.env.DISCORD_TOKEN);
+// Login to Discord - with error handling
+console.log('🔐 Attempting to login to Discord...');
+client.login(process.env.DISCORD_TOKEN)
+    .then(() => {
+        console.log('✅ Login successful, waiting for ready event...');
+    })
+    .catch(error => {
+        console.error('❌ Failed to login to Discord:', error);
+        console.error('❌ Check your DISCORD_TOKEN in environment variables');
+        process.exit(1);
+    });
