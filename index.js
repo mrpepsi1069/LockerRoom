@@ -190,12 +190,23 @@ async function handleTimesButton(interaction) {
 
 // Login to Discord - with error handling
 console.log('🔐 Attempting to login to Discord...');
+console.log('🔍 Token exists:', !!process.env.DISCORD_TOKEN);
+console.log('🔍 Token length:', process.env.DISCORD_TOKEN?.length || 0);
+
+if (!process.env.DISCORD_TOKEN) {
+    console.error('❌ DISCORD_TOKEN is not set in environment variables!');
+    console.error('❌ Please add DISCORD_TOKEN to your Render environment variables');
+    process.exit(1);
+}
+
 client.login(process.env.DISCORD_TOKEN)
     .then(() => {
         console.log('✅ Login successful, waiting for ready event...');
     })
     .catch(error => {
         console.error('❌ Failed to login to Discord:', error);
+        console.error('❌ Error name:', error.name);
+        console.error('❌ Error message:', error.message);
         console.error('❌ Check your DISCORD_TOKEN in environment variables');
         process.exit(1);
     });
