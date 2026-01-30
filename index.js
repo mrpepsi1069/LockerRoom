@@ -93,6 +93,7 @@ client.on('error', error => {
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
     // Set CORS headers
+    
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -106,7 +107,12 @@ const server = http.createServer((req, res) => {
     }
 
     const url = req.url;
-
+    // Serve website
+    if (req.url === '/' || req.url === '/index.html') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(fs.readFileSync('./lockerroom-website.html', 'utf8'));
+        return;
+    }
     // Root endpoint - Basic stats
     if (url === '/' || url === '/api/stats') {
         const stats = {
@@ -150,12 +156,6 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ error: 'Not found' }));
 });
 
-// Serve website
-if (req.url === '/' || req.url === '/index.html') {
-  res.writeHead(200, { 'Content-Type': 'text/html' });
-  res.end(fs.readFileSync('./lockerroom-website.html', 'utf8'));
-  return;
-}
 
 server.listen(PORT, () => {
     console.log(`🌐 HTTP server on ${PORT}`);
