@@ -158,10 +158,16 @@ process.on('unhandledRejection', error => console.error('❌ Unhandled rejection
 process.on('uncaughtException', error => console.error('❌ Uncaught exception:', error));
 
 async function handleGametimeButton(interaction) {
+    // Defer immediately to prevent timeout
+    await interaction.deferReply({ ephemeral: true });
+    
     const response = interaction.customId.split('_')[1];
     const message = interaction.message;
     const embed = message.embeds[0];
-    if (!embed) return;
+    if (!embed) {
+        await interaction.editReply({ content: '❌ Error: Could not find embed data.' });
+        return;
+    }
 
     const canMakeField = embed.fields[0];
     const cantMakeField = embed.fields[1];
@@ -188,19 +194,24 @@ async function handleGametimeButton(interaction) {
     );
 
     await message.edit({ embeds: [newEmbed] });
-    await interaction.reply({ 
-        content: `✅ Response recorded: **${response === 'yes' ? 'Can Make' : response === 'no' ? 'Can\'t Make' : 'Unsure'}**`, 
-        ephemeral: true 
+    await interaction.editReply({ 
+        content: `✅ Response recorded: **${response === 'yes' ? 'Can Make' : response === 'no' ? 'Can\'t Make' : 'Unsure'}**`
     });
 }
 
 async function handleTimesButton(interaction) {
+    // Defer immediately to prevent timeout
+    await interaction.deferReply({ ephemeral: true });
+    
     const parts = interaction.customId.split('_');
     const timeIndex = parts[1];
     const selectedTime = parts.slice(2).join('_');
     const message = interaction.message;
     const embed = message.embeds[0];
-    if (!embed) return;
+    if (!embed) {
+        await interaction.editReply({ content: '❌ Error: Could not find embed data.' });
+        return;
+    }
 
     const username = interaction.member.displayName;
     let description = embed.description;
@@ -235,7 +246,7 @@ async function handleTimesButton(interaction) {
     
     const newEmbed = EmbedBuilder.from(embed).setDescription(newDescription.trim());
     await message.edit({ embeds: [newEmbed] });
-    await interaction.reply({ content: `✅ Selected time: **${selectedTime}**`, ephemeral: true });
+    await interaction.editReply({ content: `✅ Selected time: **${selectedTime}**` });
 }
 
 // Login to Discord - with error handling
