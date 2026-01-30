@@ -57,12 +57,16 @@ module.exports = {
                     name: guild.name,
                     id: guildId,
                     members: guild.memberCount,
+                    owner: guild.ownerId,
                     invite: inviteLink
                 });
             } catch (error) {
                 console.error(`Error processing guild ${guild.name}:`, error);
             }
         }
+
+        // Sort by member count (largest first)
+        guildList.sort((a, b) => b.members - a.members);
 
         // Split into multiple embeds if too many guilds
         const chunkedGuilds = [];
@@ -73,16 +77,23 @@ module.exports = {
         const embeds = chunkedGuilds.map((chunk, index) => {
             const embed = new EmbedBuilder()
                 .setTitle(`📊 Bot Guilds (${index + 1}/${chunkedGuilds.length})`)
+                .setDescription(`**Total Guilds:** ${guilds.size}\n**Total Members:** ${guilds.reduce((acc, g) => acc + g.memberCount, 0)}`)
                 .setColor('#5865F2')
                 .setTimestamp();
 
             chunk.forEach(guild => {
                 embed.addFields({
-                    name: guild.name,
-                    value: `**ID:** ${guild.id}\n**Members:** ${guild.members}\n**Invite:** ${guild.invite}`,
+                    name: `🏰 ${guild.name}`,
+                    value: 
+                        `**Guild ID:** \`${guild.id}\`\n` +
+                        `**Members:** ${guild.members.toLocaleString()}\n` +
+                        `**Owner ID:** \`${guild.owner}\`\n` +
+                        `**Invite:** ${guild.invite}`,
                     inline: false
                 });
             });
+
+            embed.setFooter({ text: `LockerRoom | Page ${index + 1} of ${chunkedGuilds.length}` });
 
             return embed;
         });
