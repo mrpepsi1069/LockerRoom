@@ -92,12 +92,62 @@ client.on('error', error => {
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-        status: 'online',
-        bot: client.user?.tag || 'Starting',
-        guilds: client.guilds.cache.size
-    }));
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Content-Type', 'application/json');
+
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+
+    const url = req.url;
+
+    // Root endpoint - Basic stats
+    if (url === '/' || url === '/api/stats') {
+        const stats = {
+            status: 'online',
+            bot: client.user?.tag || 'Starting',
+            guilds: client.guilds.cache.size,
+            users: client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0),
+            uptime: Math.floor(process.uptime()),
+            version: '1.0.0'
+        };
+        res.writeHead(200);
+        res.end(JSON.stringify(stats, null, 2));
+        return;
+    }
+
+    // Guild list endpoint (public - shows basic info)
+    if (url === '/api/guilds') {
+        const guilds = Array.from(client.guilds.cache.values()).map(guild => ({
+            name: guild.name,
+            memberCount: guild.memberCount,
+            id: guild.id.slice(0, 4) + '****' // Partial ID for privacy
+        })).sort((a, b) => b.memberCount - a.memberCount); // Sort by size
+
+        res.writeHead(200);
+        res.end(JSON.stringify(guilds, null, 2));
+        return;
+    }
+
+    // Health check endpoint
+    if (url === '/health') {
+        res.writeHead(200);
+        res.end(JSON.stringify({ 
+            status: client.user ? 'healthy' : 'starting',
+            timestamp: new Date().toISOString()
+        }));
+        return;
+    }
+
+    // 404 for other routes
+    res.writeHead(404);
+    res.end(JSON.stringify({ error: 'Not found' }));
 });
 
 server.listen(PORT, () => {
