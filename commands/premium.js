@@ -60,8 +60,8 @@ module.exports = {
                 }
             )
             .setColor('#FFD700') // Gold color
-            .setThumbnail('https://i.imgur.com/AfFp7pu.png') // Optional: Add your bot's logo
-            .setImage('https://i.imgur.com/your-premium-banner.png') // Optional: Add a premium banner
+            .setThumbnail('https://chatgpt.com/backend-api/estuary/content?id=file_00000000ea90722f853f8da7edbdead0&ts=491618&p=fs&cid=1&sig=837fdb9258769dfc70910f34ff6a4119578e74f2b8123f3790288b740abd1785&v=0') // Optional: Add your bot's logo
+            .setImage('https://chatgpt.com/backend-api/estuary/content?id=file_00000000ea90722f853f8da7edbdead0&ts=491618&p=fs&cid=1&sig=837fdb9258769dfc70910f34ff6a4119578e74f2b8123f3790288b740abd1785&v=0') // Optional: Add a premium banner
             .setFooter({ text: 'Made by Ghostie | Premium Support Available 24/7' })
             .setTimestamp();
 
