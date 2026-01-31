@@ -23,23 +23,23 @@ module.exports = {
                 {
                     name: '✨ Premium Features',
                     value: 
-                        '🔔 Auto-DM game times to team members\n' +
-                        '⚙️ Custom commands for your bot only\n' +
-                        '🎨 Customizable bot name and avatar\n' +
-                        '📢 DM all members with announcements\n' +
-                        '⚡ Priority support (faster response)\n' +
-                        '🚀 Early access to new features\n' +
-                        '💾 Advanced data backup\n' +
-                        '📊 Detailed usage statistics',
+                        '• Auto-DM game times to team members\n' +
+                        '• Custom commands for your bot only\n' +
+                        '• Customizable bot name and avatar\n' +
+                        '• DM all members with announcements\n' +
+                        '• Priority support (faster response)\n' +
+                        '• Early access to new features\n' +
+                        '• Advanced data backup\n' +
+                        '• Detailed usage statistics',
                     inline: false
                 },
                 {
                     name: '💳 Payment Methods',
                     value: 
-                        '• 💵 CashApp\n' +
-                        '• 💙 PayPal\n' +
-                        '• 💰 Venmo\n' +
-                        '• ~~🎮 Robux~~ (Coming Soon)',
+                        '• CashApp\n' +
+                        '• PayPal\n' +
+                        '• Venmo\n' +
+                        '• ~~Robux~~ (Coming Soon)',
                     inline: true
                 },
                 {
@@ -62,7 +62,7 @@ module.exports = {
             .setColor('#FFD700') // Gold color
             .setThumbnail('https://i.imgur.com/AfFp7pu.png') // Optional: Add your bot's logo
             .setImage('https://i.imgur.com/your-premium-banner.png') // Optional: Add a premium banner
-            .setFooter({ text: 'Made with ❤️ by Ghostie | Premium Support Available 24/7' })
+            .setFooter({ text: 'Made by Ghostie | Premium Support Available 24/7' })
             .setTimestamp();
 
         const row = new ActionRowBuilder()
