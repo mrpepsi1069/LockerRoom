@@ -1,280 +1,510 @@
-// index.js
-require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const db = require('./database');
-const http = require('http');
-
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.MessageContent,
-    ]
-});
-
-client.commands = new Collection();
-
-const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    
-    if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command);
-        console.log(`✅ Loaded command: ${command.data.name}`);
-    }
-}
-
-client.once(Events.ClientReady, async () => {
-    console.log(`🤖 ${client.user.tag} is online`);
-    console.log(`📊 Servers: ${client.guilds.cache.size}`);
-    client.user.setActivity('your team | /help', { type: ActivityType.Watching });
-    await db.initialize();
-});
-
-client.on(Events.InteractionCreate, async interaction => {
-    if (interaction.isAutocomplete()) {
-        const command = client.commands.get(interaction.commandName);
-        if (!command || !command.autocomplete) return;
-        try {
-            await command.autocomplete(interaction);
-        } catch (error) {
-            console.error(`Autocomplete error:`, error);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LockerRoom - Discord Bot for Sports Teams</title>
+    <meta name="description" content="Manage your sports team Discord server with LockerRoom bot - Schedule games, track availability, manage lineups, and more!">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        return;
-    }
-    
-    if (interaction.isButton()) {
-        if (interaction.customId.startsWith('gametime_')) {
-            await handleGametimeButton(interaction);
-        } else if (interaction.customId.startsWith('times_')) {
-            await handleTimesButton(interaction);
+
+        :root {
+            --primary: #5865F2;
+            --primary-dark: #4752C4;
+            --secondary: #57F287;
+            --dark: #23272A;
+            --darker: #1E2124;
+            --light: #FFFFFF;
+            --gray: #99AAB5;
+            --gray-dark: #2C2F33;
         }
-        return;
-    }
-    
-    if (!interaction.isChatInputCommand()) return;
 
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
-    try {
-        if (db) {
-            await db.logCommand(interaction.commandName, interaction.guildId, interaction.user.id);
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
         }
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(`❌ Command error:`, error);
-        const errorMessage = { content: '❌ Error executing command!', ephemeral: true };
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp(errorMessage);
-        } else {
-            await interaction.reply(errorMessage);
+
+        /* Header/Hero Section */
+        .hero {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            position: relative;
+            overflow: hidden;
         }
-    }
-});
 
-client.on(Events.GuildCreate, async guild => {
-    console.log(`✅ Joined: ${guild.name}`);
-    await db.createGuild(guild.id, guild.name);
-});
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120"><path fill="%23ffffff" fill-opacity="0.05" d="M0,0 L1200,0 L1200,120 Q600,60 0,120 Z"/></svg>') repeat-x bottom;
+            opacity: 0.1;
+        }
 
-// Error handling for client
-client.on('error', error => {
-    console.error('❌ Discord client error:', error);
-});
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
 
-const PORT = process.env.PORT || 3000;
-const server = http.createServer((req, res) => {
-    // Set CORS headers
-    
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Content-Type', 'application/json');
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            animation: fadeInUp 0.8s ease;
+        }
 
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-        res.writeHead(200);
-        res.end();
-        return;
-    }
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            animation: fadeInUp 0.8s ease 0.2s backwards;
+        }
 
-    const url = req.url;
-    // Serve website
-    if (req.url === '/' || req.url === '/index.html') {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(fs.readFileSync('./lockerroom-website.html', 'utf8'));
-        return;
-    }
-    // Root endpoint - Basic stats
-    if (url === '/' || url === '/api/stats') {
-        const stats = {
-            status: 'online',
-            bot: client.user?.tag || 'Starting',
-            guilds: client.guilds.cache.size,
-            users: client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0),
-            uptime: Math.floor(process.uptime()),
-            version: '1.0.0'
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.4s backwards;
+        }
+
+        .btn {
+            padding: 15px 35px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: var(--light);
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--light);
+            border: 2px solid var(--light);
+        }
+
+        .btn-secondary:hover {
+            background: var(--light);
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        /* Statistics Section */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            padding: 60px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: var(--gray-dark);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 30px rgba(88, 101, 242, 0.3);
+        }
+
+        .stat-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .loading {
+            color: var(--gray);
+            font-style: italic;
+        }
+
+        /* Servers Section */
+        .section {
+            padding: 60px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            text-align: center;
+            color: var(--light);
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .server-card {
+            background: var(--gray-dark);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .server-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(88, 101, 242, 0.2);
+        }
+
+        .server-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--light);
+        }
+
+        .server-info {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+
+        .server-info span {
+            font-size: 0.9rem;
+        }
+
+        /* Features Section */
+        .features {
+            background: var(--gray-dark);
+            padding: 60px 20px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--dark);
+            padding: 30px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--light);
+        }
+
+        .feature-description {
+            color: var(--gray);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--darker);
+            color: var(--gray);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Error/Loading States */
+        .error-message {
+            background: #ED4245;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--gray);
+            padding: 40px;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>🏆 LockerRoom Bot</h1>
+            <p>The ultimate Discord bot for managing sports teams and gaming communities</p>
+            <div class="btn-group">
+                <a href="#" id="invite-btn" class="btn btn-primary">
+                    <span>➕</span> Add to Discord
+                </a>
+                <a href="#" id="support-btn" class="btn btn-secondary">
+                    <span>💬</span> Join Support Server
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="stats">
+        <div class="stat-card">
+            <div class="stat-icon">🏰</div>
+            <div class="stat-number" id="guild-count">
+                <span class="loading">Loading...</span>
+            </div>
+            <div class="stat-label">Servers</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-number" id="user-count">
+                <span class="loading">Loading...</span>
+            </div>
+            <div class="stat-label">Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-number" id="uptime">
+                <span class="loading">Loading...</span>
+            </div>
+            <div class="stat-label">Status</div>
+        </div>
+    </section>
+
+    <!-- Servers Section -->
+    <section class="section">
+        <h2 class="section-title">🌐 Servers Using LockerRoom</h2>
+        <div id="servers-container">
+            <div class="loading" style="text-align: center; padding: 40px;">Loading servers...</div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="section">
+            <h2 class="section-title">✨ Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⏰</div>
+                    <div class="feature-title">Game Scheduling</div>
+                    <div class="feature-description">Create game time polls with multiple time options. Players can select their availability with interactive buttons.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <div class="feature-title">Lineup Management</div>
+                    <div class="feature-description">Organize team lineups and track player availability for matches and scrimmages.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏅</div>
+                    <div class="feature-title">Award System</div>
+                    <div class="feature-description">Recognize players with custom awards and track achievements throughout the season.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔔</div>
+                    <div class="feature-title">Team Notifications</div>
+                    <div class="feature-description">DM all team members at once with important announcements and updates.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👑</div>
+                    <div class="feature-title">League Support</div>
+                    <div class="feature-description">Manage multiple leagues within the same server with custom roles and permissions.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-title">Moderation Tools</div>
+                    <div class="feature-description">Powerful moderation commands including timeout, kick, and ban with proper role hierarchy.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>© 2025 LockerRoom Bot. Made for sports teams and gaming communities.</p>
+        <p style="margin-top: 10px; font-size: 0.9rem;">Powered by Discord.js</p>
+    </footer>
+
+    <script>
+        // Configuration - Update these with your actual values
+        const CONFIG = {
+            apiUrl: 'https://endless-evangeline-ghostie-bots-7370516d.koyeb.app', // Your Koyeb app URL
+            inviteUrl: 'https://discord.com/api/oauth2/authorize?client_id=1446687675330330826&permissions=8&scope=bot%20applications.commands',
+            supportServerUrl: 'https://discord.gg/BkFJuu7DbN'
         };
-        res.writeHead(200);
-        res.end(JSON.stringify(stats, null, 2));
-        return;
-    }
 
-    // Guild list endpoint (public - shows basic info)
-    if (url === '/api/guilds') {
-        const guilds = Array.from(client.guilds.cache.values()).map(guild => ({
-            name: guild.name,
-            memberCount: guild.memberCount,
-            id: guild.id.slice(0, 4) + '****' // Partial ID for privacy
-        })).sort((a, b) => b.memberCount - a.memberCount); // Sort by size
+        // Set invite and support links
+        document.getElementById('invite-btn').href = CONFIG.inviteUrl;
+        document.getElementById('support-btn').href = CONFIG.supportServerUrl;
 
-        res.writeHead(200);
-        res.end(JSON.stringify(guilds, null, 2));
-        return;
-    }
+        // Fetch bot statistics
+        async function fetchBotStats() {
+            try {
+                const response = await fetch(`${CONFIG.apiUrl}/api/stats`);
+                const data = await response.json();
 
-    // Health check endpoint
-    if (url === '/health') {
-        res.writeHead(200);
-        res.end(JSON.stringify({ 
-            status: client.user ? 'healthy' : 'starting',
-            timestamp: new Date().toISOString()
-        }));
-        return;
-    }
+                // Update statistics
+                document.getElementById('guild-count').textContent = data.guilds || '0';
+                
+                // Use actual user count from API
+                document.getElementById('user-count').textContent = (data.users || 0).toLocaleString();
 
-    // 404 for other routes
-    res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found' }));
-});
+                // Update status
+                const statusElement = document.getElementById('uptime');
+                if (data.status === 'online' && data.bot !== 'Starting') {
+                    statusElement.innerHTML = '<span style="color: #57F287;">🟢 Online</span>';
+                } else {
+                    statusElement.innerHTML = '<span style="color: #ED4245;">🔴 Starting...</span>';
+                }
 
+                // Fetch server list
+                await fetchServerList(data.guilds);
 
-server.listen(PORT, () => {
-    console.log(`🌐 HTTP server on ${PORT}`);
-});
-
-process.on('unhandledRejection', error => console.error('❌ Unhandled rejection:', error));
-process.on('uncaughtException', error => console.error('❌ Uncaught exception:', error));
-
-async function handleGametimeButton(interaction) {
-    // Defer immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
-    
-    const response = interaction.customId.split('_')[1];
-    const message = interaction.message;
-    const embed = message.embeds[0];
-    if (!embed) {
-        await interaction.editReply({ content: '❌ Error: Could not find embed data.' });
-        return;
-    }
-
-    const canMakeField = embed.fields[0];
-    const cantMakeField = embed.fields[1];
-    const unsureField = embed.fields[2];
-
-    let canMake = canMakeField.value === '• None yet' ? [] : canMakeField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
-    let cantMake = cantMakeField.value === '• None yet' ? [] : cantMakeField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
-    let unsure = unsureField.value === '• None yet' ? [] : unsureField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
-
-    const username = interaction.member.displayName;
-    canMake = canMake.filter(u => u !== username);
-    cantMake = cantMake.filter(u => u !== username);
-    unsure = unsure.filter(u => u !== username);
-
-    if (response === 'yes') canMake.push(username);
-    else if (response === 'no') cantMake.push(username);
-    else if (response === 'unsure') unsure.push(username);
-
-    const formatList = (list) => list.length > 0 ? list.map(u => `• ${u}`).join('\n') : '• None yet';
-    const newEmbed = EmbedBuilder.from(embed).setFields(
-        { name: `✅ Can Make (${canMake.length})`, value: formatList(canMake), inline: false },
-        { name: `❌ Can't Make (${cantMake.length})`, value: formatList(cantMake), inline: false },
-        { name: `❓ Unsure (${unsure.length})`, value: formatList(unsure), inline: false }
-    );
-
-    await message.edit({ embeds: [newEmbed] });
-    await interaction.editReply({ 
-        content: `✅ Response recorded: **${response === 'yes' ? 'Can Make' : response === 'no' ? 'Can\'t Make' : 'Unsure'}**`
-    });
-}
-
-async function handleTimesButton(interaction) {
-    // Defer immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
-    
-    const parts = interaction.customId.split('_');
-    const timeIndex = parts[1];
-    const selectedTime = parts.slice(2).join('_');
-    const message = interaction.message;
-    const embed = message.embeds[0];
-    if (!embed) {
-        await interaction.editReply({ content: '❌ Error: Could not find embed data.' });
-        return;
-    }
-
-    const username = interaction.member.displayName;
-    let description = embed.description;
-    const lines = description.split('\n');
-    const timeSections = [];
-    let currentTime = null;
-    let currentUsers = [];
-    
-    for (const line of lines) {
-        if (line.startsWith('🕐 **')) {
-            if (currentTime) timeSections.push({ time: currentTime, users: currentUsers });
-            currentTime = line.replace('🕐 **', '').replace('**', '');
-            currentUsers = [];
-        } else if (line.startsWith('• ') && currentTime) {
-            const users = line.substring(2).split('• ').map(u => u.trim()).filter(u => u && u !== 'None yet');
-            currentUsers = users;
+            } catch (error) {
+                console.error('Error fetching bot stats:', error);
+                document.getElementById('guild-count').innerHTML = '<span style="color: #ED4245;">Error</span>';
+                document.getElementById('user-count').innerHTML = '<span style="color: #ED4245;">Error</span>';
+                document.getElementById('uptime').innerHTML = '<span style="color: #ED4245;">🔴 Offline</span>';
+                
+                document.getElementById('servers-container').innerHTML = `
+                    <div class="error-message">
+                        ❌ Unable to fetch server data. The bot may be offline or experiencing issues.
+                    </div>
+                `;
+            }
         }
-    }
-    if (currentTime) timeSections.push({ time: currentTime, users: currentUsers });
-    
-    timeSections.forEach(section => {
-        section.users = section.users.filter(u => u !== username);
-    });
-    if (timeSections[timeIndex]) timeSections[timeIndex].users.push(username);
-    
-    const leagueLine = lines[0];
-    let newDescription = leagueLine + '\n\n';
-    timeSections.forEach(section => {
-        newDescription += `🕐 **${section.time}**\n`;
-        newDescription += section.users.length > 0 ? `• ${section.users.join(' • ')}\n\n` : `• None yet\n\n`;
-    });
-    
-    const newEmbed = EmbedBuilder.from(embed).setDescription(newDescription.trim());
-    await message.edit({ embeds: [newEmbed] });
-    await interaction.editReply({ content: `✅ Selected time: **${selectedTime}**` });
-}
 
-// Login to Discord - with error handling
-console.log('🔐 Attempting to login to Discord...');
-console.log('🔍 Token exists:', !!process.env.DISCORD_TOKEN);
-console.log('🔍 Token length:', process.env.DISCORD_TOKEN?.length || 0);
+        // Fetch server list from API
+        async function fetchServerList(guildCount) {
+            const container = document.getElementById('servers-container');
+            
+            try {
+                const response = await fetch(`${CONFIG.apiUrl}/api/guilds`);
+                const guilds = await response.json();
+                
+                if (guilds.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-data">
+                            Be the first to add LockerRoom to your server! 🚀
+                        </div>
+                    `;
+                    return;
+                }
 
-if (!process.env.DISCORD_TOKEN) {
-    console.error('❌ DISCORD_TOKEN is not set in environment variables!');
-    console.error('❌ Please add DISCORD_TOKEN to your Render environment variables');
-    process.exit(1);
-}
+                const serversHTML = guilds.map(guild => `
+                    <div class="server-card">
+                        <div class="server-name">🏰 ${guild.name}</div>
+                        <div class="server-info">
+                            <span>👥</span>
+                            <span>${guild.memberCount.toLocaleString()} members</span>
+                        </div>
+                        <div class="server-info">
+                            <span>🆔</span>
+                            <span>${guild.id}</span>
+                        </div>
+                    </div>
+                `).join('');
 
-client.login(process.env.DISCORD_TOKEN)
-    .then(() => {
-        console.log('✅ Login successful, waiting for ready event...');
-    })
-    .catch(error => {
-        console.error('❌ Failed to login to Discord:', error);
-        console.error('❌ Error name:', error.name);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Check your DISCORD_TOKEN in environment variables');
-        process.exit(1);
-    });
+                container.innerHTML = `<div class="servers-grid">${serversHTML}</div>`;
+            } catch (error) {
+                console.error('Error fetching servers:', error);
+                container.innerHTML = `
+                    <div class="no-data">
+                        🏰 Currently serving <strong>${guildCount}</strong> amazing communities!
+                        <br><br>
+                        <small style="color: var(--gray);">Join one of them by adding LockerRoom to your server!</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Load stats on page load
+        fetchBotStats();
+
+        // Refresh stats every 30 seconds
+        setInterval(fetchBotStats, 30000);
+    </script>
+</body>
+</html>
