@@ -2,7 +2,8 @@
 const db = require('../database');
 
 async function isOwner(userId) {
-    return userId === process.env.OWNER_ID;
+    const owners = [process.env.OWNER_ID, process.env.OWNER_ID_2];
+    return owners.includes(userId);
 }
 
 async function isAdmin(interaction) {
