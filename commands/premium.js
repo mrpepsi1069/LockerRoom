@@ -9,31 +9,60 @@ module.exports = {
     async execute(interaction) {
         const embed = new EmbedBuilder()
             .setTitle('💎 LockerRoom Bot Premium')
-            .setDescription('Unlock exclusive features for your team!')
+            .setDescription('Unlock exclusive features for your team and take your server to the next level!')
             .addFields(
                 {
-                    name: '### 💰 Custom LockerRoom Bot Pricing',
-                    value: '**Monthly** - $3/month\n**3 Months** - $6 (Save $3!)\n**Lifetime** - $10\n**Custom Commands** - $1-5 (Based on complexity)',
+                    name: '💰 Pricing Plans',
+                    value: 
+                        '**Monthly** - $3/month\n' +
+                        '**3 Months** - $6 (Save $3!)\n' +
+                        '**Lifetime** - $10 (Best Value! 🔥)\n' +
+                        '**Custom Commands** - $1-5 (Based on complexity)',
                     inline: false
                 },
                 {
-                    name: '### ✨ Premium Features',
-                    value: '• Auto-DM game times to team members\n• Custom Commands to your bot only\n• Customizable bot name and PFP\n• DM all members with custom messages\n• Faster Priority support\n• Test Early and New Features',
+                    name: '✨ Premium Features',
+                    value: 
+                        '🔔 Auto-DM game times to team members\n' +
+                        '⚙️ Custom commands for your bot only\n' +
+                        '🎨 Customizable bot name and avatar\n' +
+                        '📢 DM all members with announcements\n' +
+                        '⚡ Priority support (faster response)\n' +
+                        '🚀 Early access to new features\n' +
+                        '💾 Advanced data backup\n' +
+                        '📊 Detailed usage statistics',
                     inline: false
                 },
                 {
-                    name: '### 💳 Payment Methods',
-                    value: '• CashApp\n• PayPal\n• ~~Robux~~',
-                    inline: false
+                    name: '💳 Payment Methods',
+                    value: 
+                        '• 💵 CashApp\n' +
+                        '• 💙 PayPal\n' +
+                        '• 💰 Venmo\n' +
+                        '• ~~🎮 Robux~~ (Coming Soon)',
+                    inline: true
                 },
                 {
-                    name: '### 🛒 How to Purchase',
-                    value: 'Click the button below to join our Discord server and create a ticket!',
+                    name: '🎁 Why Go Premium?',
+                    value: 
+                        '• Support development\n' +
+                        '• Get exclusive features\n' +
+                        '• Stand out from other servers\n' +
+                        '• Lifetime option = One-time payment!',
+                    inline: true
+                },
+                {
+                    name: '🛒 How to Purchase',
+                    value: 
+                        'Click the **"Purchase Premium"** button below to join our Discord server.\n' +
+                        'Create a ticket and our team will help you get started! 🎫',
                     inline: false
                 }
             )
-            .setColor('#FFD700')
-            .setFooter({ text: 'By Ghostie' })
+            .setColor('#FFD700') // Gold color
+            .setThumbnail('https://i.imgur.com/AfFp7pu.png') // Optional: Add your bot's logo
+            .setImage('https://i.imgur.com/your-premium-banner.png') // Optional: Add a premium banner
+            .setFooter({ text: 'Made with ❤️ by Ghostie | Premium Support Available 24/7' })
             .setTimestamp();
 
         const row = new ActionRowBuilder()
@@ -42,12 +71,18 @@ module.exports = {
                     .setLabel('Purchase Premium')
                     .setStyle(ButtonStyle.Link)
                     .setURL('https://discord.gg/BkFJuu7DbN')
-                    .setEmoji('💎')
+                    .setEmoji('💎'),
+                new ButtonBuilder()
+                    .setLabel('View Demo')
+                    .setStyle(ButtonStyle.Link)
+                    .setURL('https://discord.gg/BkFJuu7DbN')
+                    .setEmoji('🎬')
             );
 
         await interaction.reply({ 
             embeds: [embed],
-            components: [row]
+            components: [row],
+            ephemeral: false // Set to true if you want only the user to see it
         });
     }
 };
