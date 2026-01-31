@@ -12,23 +12,23 @@ module.exports = {
             .setDescription('Unlock exclusive features for your team!')
             .addFields(
                 {
-                    name: '✨ Premium Features',
-                    value: '• Auto-DM game times to team members\n• Custom bot profile picture\n• Custom bot name in your server\n• DM all members with custom messages\n• Priority support\n• More features coming soon!',
+                    name: '### 💰 Custom LockerRoom Bot Pricing',
+                    value: '**Monthly** - $3/month\n**3 Months** - $6 (Save $3!)\n**Lifetime** - $10\n**Custom Commands** - $1-5 (Based on complexity)',
                     inline: false
                 },
                 {
-                    name: '💰 Pricing Plans',
-                    value: '**Monthly** - $1/month\n**6 Months** - $5 (Save $1!)\n**Lifetime** - $10 (Best Value!)\n**Custom Commands** - $1-5 (Based on complexity)',
+                    name: '### ✨ Premium Features',
+                    value: '• Auto-DM game times to team members\n• Custom Commands to your bot only\n• Customizable bot name and PFP\n• DM all members with custom messages\n• Faster Priority support\n• Test Early and New Features',
                     inline: false
                 },
                 {
-                    name: '💳 Payment Methods',
-                    value: '• CashApp\n• PayPal\n• Robux',
+                    name: '### 💳 Payment Methods',
+                    value: '• CashApp\n• PayPal\n• ~~Robux~~',
                     inline: false
                 },
                 {
-                    name: '🛒 How to Purchase',
-                    value: 'Click the button below to join our Discord server and purchase premium!',
+                    name: '### 🛒 How to Purchase',
+                    value: 'Click the button below to join our Discord server and create a ticket!',
                     inline: false
                 }
             )
