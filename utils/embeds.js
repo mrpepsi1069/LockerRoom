@@ -116,6 +116,7 @@ function helpEmbed() {
 /awardcheck - View self awards
 /suggest - Submit suggestion
 /flipcoin - Flip a coin
+/randomnumber - Pick a random number from min to max
 /bold - Boldify text
 /fban - Fake ban
 /fkick - Fake kick
@@ -134,6 +135,7 @@ function helpEmbed() {
 `/gametime - Create game time poll (DMs players with Premium)
 /times - Multiple time options
 /league-add - Post recruitment
+/league-delete - Remove a league
 /ring-add - Grant rings
 /award - Give awards
 /lineup-create - Create a new lineup
@@ -150,6 +152,10 @@ function helpEmbed() {
                 name: '🔧 Admin Commands',
                 value:
 `/setup - Configure bot
+/role - Role a user a role
+/unrole - Unrole a user a role
+/adminkick - Kick a user
+/adminban - ban a user
 /change-pfp - (disabled) Change bot picture (Premium)
 /change-botname - Change bot name (Premium)
 

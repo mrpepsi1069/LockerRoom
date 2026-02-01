@@ -119,10 +119,13 @@ module.exports = {
                 if (selections[idx].size === 0) {
                     newDescription += `• None yet\n\n`;
                 } else {
-                    const users = Array.from(selections[idx]).map(id => `<@${id}>`).join(', ');
+                    const users = Array.from(selections[idx])
+                        .map(id => `<@${id}>`)  // proper mention
+                        .join('\n• ');           // bullet list
                     newDescription += `• ${users}\n\n`;
                 }
             });
+
 
             const updatedEmbed = new EmbedBuilder()
                 .setTitle('⏰ Pick a time for gametime')

@@ -20,8 +20,12 @@ module.exports = {
         .addStringOption(option =>
             option.setName('signup_link')
                 .setDescription('Sign-up link')
+                .setRequired(false))
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('Channel to post the recruitment embed')
                 .setRequired(false)),
-    
+
     async execute(interaction) {
         // Check permissions
         if (!await hasManagerPerms(interaction)) {
@@ -34,9 +38,10 @@ module.exports = {
         const name = interaction.options.getString('name');
         const abbr = interaction.options.getString('abbreviation').toUpperCase();
         const signupLink = interaction.options.getString('signup_link');
+        const channelOption = interaction.options.getChannel('channel');
 
         try {
-            // Create league
+            // Create league in DB
             const league = await db.createLeague(interaction.guildId, name, abbr, signupLink);
 
             // Create recruitment embed
@@ -47,26 +52,27 @@ module.exports = {
                 .setFooter({ text: 'React below if interested!' })
                 .setTimestamp();
 
-            // Post to sign request channel if configured
-            const channels = await db.getGuildChannels(interaction.guildId);
-            if (channels.sign_request) {
-                const channel = await interaction.guild.channels.fetch(channels.sign_request);
-                if (channel) {
-                    await channel.send({ embeds: [embed] });
+            // Post embed to specified channel, or fallback to default channel from DB, or current channel
+            let targetChannel = channelOption;
+            if (!targetChannel) {
+                const channels = await db.getGuildChannels(interaction.guildId);
+                if (channels.sign_request) {
+                    targetChannel = await interaction.guild.channels.fetch(channels.sign_request).catch(() => null);
                 }
-            } else {
-                // Post to current channel
-                await interaction.channel.send({ embeds: [embed] });
             }
+            if (!targetChannel) targetChannel = interaction.channel;
+
+            await targetChannel.send({ embeds: [embed] });
 
             await interaction.reply({
-                embeds: [successEmbed('League Added', `Successfully created league **${name}** (${abbr})`)],
+                embeds: [successEmbed('League Added', `Successfully created league **${name}** (${abbr}) in ${targetChannel}`)],
                 ephemeral: true
             });
+
         } catch (error) {
             console.error('League add error:', error);
             await interaction.reply({
-                embeds: [errorEmbed('Failed', 'A league with that abbreviation already exists.')],
+                embeds: [errorEmbed('Failed', 'A league with that abbreviation already exists or another error occurred.')],
                 ephemeral: true
             });
         }

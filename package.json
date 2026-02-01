@@ -9,9 +9,10 @@
     "deploy": "node deploy-commands.js"
   },
   "dependencies": {
+    "@koa/cors": "^5.0.0",
     "discord.js": "^14.14.1",
-    "mongodb": "^6.10.0",
-    "dotenv": "^16.4.1"
+    "dotenv": "^16.4.1",
+    "mongodb": "^6.10.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"
