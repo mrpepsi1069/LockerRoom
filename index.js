@@ -164,6 +164,7 @@ async function handleGametimeButton(interaction) {
     const response = interaction.customId.split('_')[1];
     const message = interaction.message;
     const embed = message.embeds[0];
+    
     if (!embed) {
         await interaction.editReply({ content: '❌ Error: Could not find embed data.' });
         return;
@@ -173,20 +174,40 @@ async function handleGametimeButton(interaction) {
     const cantMakeField = embed.fields[1];
     const unsureField = embed.fields[2];
 
-    let canMake = canMakeField.value === '• None yet' ? [] : canMakeField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
-    let cantMake = cantMakeField.value === '• None yet' ? [] : cantMakeField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
-    let unsure = unsureField.value === '• None yet' ? [] : unsureField.value.split('• ').filter(u => u.trim()).map(u => u.trim());
+    // Extract user IDs from mentions instead of display names
+    const extractUserIds = (fieldValue) => {
+        if (fieldValue === '• None yet') return [];
+        const mentionRegex = /<@(\d+)>/g;
+        const ids = [];
+        let match;
+        while ((match = mentionRegex.exec(fieldValue)) !== null) {
+            ids.push(match[1]);
+        }
+        return ids;
+    };
 
-    const username = interaction.member.displayName;
-    canMake = canMake.filter(u => u !== username);
-    cantMake = cantMake.filter(u => u !== username);
-    unsure = unsure.filter(u => u !== username);
+    let canMake = extractUserIds(canMakeField.value);
+    let cantMake = extractUserIds(cantMakeField.value);
+    let unsure = extractUserIds(unsureField.value);
 
-    if (response === 'yes') canMake.push(username);
-    else if (response === 'no') cantMake.push(username);
-    else if (response === 'unsure') unsure.push(username);
+    const userId = interaction.user.id;
 
-    const formatList = (list) => list.length > 0 ? list.map(u => `• ${u}`).join('\n') : '• None yet';
+    // Remove user from all lists
+    canMake = canMake.filter(id => id !== userId);
+    cantMake = cantMake.filter(id => id !== userId);
+    unsure = unsure.filter(id => id !== userId);
+
+    // Add user to selected list
+    if (response === 'yes') canMake.push(userId);
+    else if (response === 'no') cantMake.push(userId);
+    else if (response === 'unsure') unsure.push(userId);
+
+    // Format lists with mentions only
+    const formatList = (list) => {
+        if (list.length === 0) return '• None yet';
+        return list.map(id => `• <@${id}>`).join('\n');
+    };
+
     const newEmbed = EmbedBuilder.from(embed).setFields(
         { name: `✅ Can Make (${canMake.length})`, value: formatList(canMake), inline: false },
         { name: `❌ Can't Make (${cantMake.length})`, value: formatList(cantMake), inline: false },

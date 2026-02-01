@@ -77,15 +77,19 @@ module.exports = {
         });
 
         // Store gametime in DB
-        await db.createGametime(
-            interaction.guildId,
-            time,
-            new Date(),
-            message.id,
-            interaction.channelId,
-            role.id,
-            interaction.user.id
-        );
+        try {
+            await db.createGametime(
+                interaction.guildId,
+                time,
+                new Date(),
+                message.id,
+                interaction.channelId,
+                role.id,
+                interaction.user.id
+            );
+        } catch (error) {
+            console.log('Error saving gametime to DB:', error);
+        }
 
         const isPremium = await checkPremium(interaction.guildId);
 
@@ -95,6 +99,7 @@ module.exports = {
                 const members = await interaction.guild.members.fetch();
                 const roleMembers = members.filter(m => m.roles.cache.has(role.id) && !m.user.bot);
 
+                let dmCount = 0;
                 for (const [, member] of roleMembers) {
                     try {
                         await member.send({
@@ -104,10 +109,12 @@ module.exports = {
                                 .setColor('#5865F2')
                             ]
                         });
+                        dmCount++;
                     } catch (err) {
-                        console.log(`Could not DM ${member.user.tag}`);
+                        // User has DMs disabled
                     }
                 }
+                console.log(`✉️ Sent ${dmCount} DMs for gametime poll`);
             } catch (err) {
                 console.error('Error DMing members:', err);
             }
@@ -119,47 +126,6 @@ module.exports = {
 
         await interaction.editReply({
             embeds: [successEmbed('Gametime Created', `Successfully created gametime poll for **${league}**${premiumNote}`)]
-        });
-
-        // Collector to handle button clicks
-        const collector = message.createMessageComponentCollector({ time: 7 * 24 * 60 * 60 * 1000 }); // 7 days
-
-        // Map of arrays for each response
-        const selections = {
-            yes: new Set(),
-            no: new Set(),
-            unsure: new Set()
-        };
-
-        collector.on('collect', async i => {
-            const userId = i.user.id;
-            const username = `<@${userId}>`;
-
-            // Remove user from all sets first
-            selections.yes.delete(username);
-            selections.no.delete(username);
-            selections.unsure.delete(username);
-
-            // Add to correct set
-            if (i.customId === 'gametime_yes') selections.yes.add(username);
-            else if (i.customId === 'gametime_no') selections.no.add(username);
-            else if (i.customId === 'gametime_unsure') selections.unsure.add(username);
-
-            // Update embed
-            const formatList = (set) => set.size > 0 ? Array.from(set).join('\n• ') : '• None yet';
-
-            const updatedEmbed = EmbedBuilder.from(embed).setFields(
-                { name: `✅ Can Make (${selections.yes.size})`, value: formatList(selections.yes), inline: false },
-                { name: `❌ Can't Make (${selections.no.size})`, value: formatList(selections.no), inline: false },
-                { name: `❓ Unsure (${selections.unsure.size})`, value: formatList(selections.unsure), inline: false }
-            );
-
-            await message.edit({ embeds: [updatedEmbed], components: [row] });
-
-            await i.reply({
-                content: `✅ Response recorded: **${i.customId === 'gametime_yes' ? 'Can Make' : i.customId === 'gametime_no' ? "Can't Make" : 'Unsure'}**`,
-                ephemeral: true
-            });
         });
     }
 };
