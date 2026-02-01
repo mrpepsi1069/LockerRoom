@@ -127,7 +127,7 @@ const server = http.createServer((req, res) => {
         const guilds = Array.from(client.guilds.cache.values()).map(guild => ({
             name: guild.name,
             memberCount: guild.memberCount,
-            id: guild.id.slice(0, 4) + '****' // Partial ID for privacy
+            id: guild.id.slice(0, 6) + '****' // Partial ID for privacy
         })).sort((a, b) => b.memberCount - a.memberCount); // Sort by size
 
         res.writeHead(200);
