@@ -32,6 +32,14 @@ module.exports = {
         const timesInput = interaction.options.getString('times');
         const role = interaction.options.getRole('role');
 
+        // Validate input
+        if (!timesInput || timesInput.trim().length === 0) {
+            return interaction.reply({
+                embeds: [errorEmbed('Missing Times', 'Please provide time options!')],
+                ephemeral: true
+            });
+        }
+
         // Parse times
         const times = timesInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
