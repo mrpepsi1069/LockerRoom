@@ -1,162 +1,94 @@
-// commands/times.js
+// commands/times.js - FIXED (no collector)
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { hasManagerPerms } = require('../utils/permissions');
-const { errorEmbed, successEmbed } = require('../utils/embeds');
-const db = require('../database');
+const { successEmbed, errorEmbed } = require('../utils/embeds');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('times')
-        .setDescription('Post multiple game time options (Manager only)')
+        .setDescription('Create a poll for multiple time options')
         .addStringOption(option =>
             option.setName('league')
-                .setDescription('League name')
+                .setDescription('League name/abbreviation')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('times')
+                .setDescription('Time options separated by commas (e.g., "7 PM EST, 8 PM EST, 9 PM EST")')
                 .setRequired(true))
         .addRoleOption(option =>
             option.setName('role')
                 .setDescription('Role to ping')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('time1')
-                .setDescription('First time option (e.g., "8 PM EST")')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('time2')
-                .setDescription('Second time option')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('time3')
-                .setDescription('Third time option')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('time4')
-                .setDescription('Fourth time option')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('time5')
-                .setDescription('Fifth time option')
-                .setRequired(false)),
-    
+                .setRequired(true)),
+
     async execute(interaction) {
-        // Check permissions
         if (!await hasManagerPerms(interaction)) {
-            return interaction.reply({ 
-                embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher to use this command.')], 
-                ephemeral: true 
+            return interaction.reply({
+                embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+                ephemeral: true
             });
         }
 
         const league = interaction.options.getString('league');
+        const timesInput = interaction.options.getString('times');
         const role = interaction.options.getRole('role');
 
-        // Collect all time options
-        const times = [];
-        for (let i = 1; i <= 5; i++) {
-            const time = interaction.options.getString(`time${i}`);
-            if (time) times.push(time);
+        // Parse times
+        const times = timesInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+        if (times.length < 2) {
+            return interaction.reply({
+                embeds: [errorEmbed('Invalid Input', 'Please provide at least 2 time options separated by commas!')],
+                ephemeral: true
+            });
+        }
+
+        if (times.length > 5) {
+            return interaction.reply({
+                embeds: [errorEmbed('Too Many Options', 'Maximum 5 time options allowed!')],
+                ephemeral: true
+            });
         }
 
         await interaction.deferReply({ ephemeral: true });
 
-        // Initialize selections storage
-        const selections = {};
+        // Build description
+        let description = `**League:** ${league}\n\nSelect which times work for you:\n\n`;
         times.forEach((time, index) => {
-            selections[index] = new Set();
-        });
-
-        // Build embed description with time sections
-        let description = `**League:** ${league}\n\n`;
-        times.forEach(time => {
             description += `🕐 **${time}**\n• None yet\n\n`;
         });
 
-        // Create embed
         const embed = new EmbedBuilder()
-            .setTitle('⏰ Pick a time for gametime')
+            .setTitle('⏰ Available Times Poll')
             .setDescription(description.trim())
             .setColor('#5865F2')
-            .setFooter({ text: 'LockerRoom | Gametime Manager • You can select multiple times' })
+            .setFooter({ text: 'Click the buttons to select your available times' })
             .setTimestamp();
 
-        // Create buttons for each time (max 5)
+        // Create buttons (max 5)
         const buttons = times.map((time, index) => 
             new ButtonBuilder()
-                .setCustomId(`times_${index}_${time}`)
+                .setCustomId(`times_${index}_${time.replace(/\s+/g, '_')}`)
                 .setLabel(time)
                 .setStyle(ButtonStyle.Primary)
         );
 
-        const row = new ActionRowBuilder().addComponents(buttons);
+        // Split into rows (max 5 buttons per row)
+        const rows = [];
+        for (let i = 0; i < buttons.length; i += 5) {
+            rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
+        }
 
-        // Send the message
+        // Send message
         const message = await interaction.channel.send({
             content: `${role}`,
             embeds: [embed],
-            components: [row]
-        });
-
-        // Store the message data for the collector
-        const collector = message.createMessageComponentCollector({ 
-            time: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
-
-        collector.on('collect', async i => {
-            const [cmd, timeIndex, timeLabel] = i.customId.split('_');
-            const userId = i.user.id;
-            const index = parseInt(timeIndex);
-
-            // Toggle user selection
-            if (selections[index].has(userId)) {
-                selections[index].delete(userId);
-            } else {
-                selections[index].add(userId);
-            }
-
-            // Update embed description
-            let newDescription = `**League:** ${league}\n\n`;
-            times.forEach((time, idx) => {
-                newDescription += `🕐 **${time}**\n`;
-                if (selections[idx].size === 0) {
-                    newDescription += `• None yet\n\n`;
-                } else {
-                    const users = Array.from(selections[idx])
-                        .map(id => `<@${id}>`)  // proper mention
-                        .join('\n• ');           // bullet list
-                    newDescription += `• ${users}\n\n`;
-                }
-            });
-
-
-            const updatedEmbed = new EmbedBuilder()
-                .setTitle('⏰ Pick a time for gametime')
-                .setDescription(newDescription.trim())
-                .setColor('#5865F2')
-                .setFooter({ text: 'LockerRoom | Gametime Manager • You can select multiple times' })
-                .setTimestamp();
-
-            // Update the original message for everyone
-            await message.edit({
-                embeds: [updatedEmbed],
-                components: [row]  // Keep original buttons
-            });
-
-            // Send ephemeral response to show the user's selections
-            const userSelections = times
-                .map((time, idx) => selections[idx].has(userId) ? time : null)
-                .filter(Boolean);
-            
-            const responseMessage = userSelections.length > 0
-                ? `✅ Your selected times: ${userSelections.join(', ')}`
-                : `ℹ️ You haven't selected any times yet.`;
-
-            await i.reply({
-                content: responseMessage,
-                ephemeral: true
-            });
+            components: rows
         });
 
         await interaction.editReply({
-            embeds: [successEmbed('Times Poll Created', `Successfully created times poll for **${league}**\nPlayers can select multiple time options.`)]
+            embeds: [successEmbed('Times Poll Created', `Created times poll for **${league}**!`)]
         });
+
+        // NO COLLECTOR - index.js handles all button clicks via handleTimesButton
     }
 };
