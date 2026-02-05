@@ -43,6 +43,7 @@ async function createIndexes() {
         { unique: true }
     );
     await db.collection('gametime_rsvps').createIndex({ messageId: 1 }, { unique: true });
+    await db.collection('depth_charts').createIndex({ guildId: 1, abbreviation: 1 }, { unique: true });
 }
 
 // ============================================
@@ -97,6 +98,11 @@ async function setGuildPreferences(guildId, preferences) {
         },
         { upsert: true }
     );
+}
+
+async function getGuildConfig(guildId) {
+    if (!db) return null;
+    return await db.collection('guild_configs').findOne({ guild_id: guildId });
 }
 
 // ============================================
@@ -166,6 +172,11 @@ async function getLeagues(guildId) {
 async function getLeagueByAbbr(guildId, leagueAbbr) {
     if (!db) return null;
     return await db.collection('leagues').findOne({ guild_id: guildId, league_abbr: leagueAbbr.toUpperCase() });
+}
+
+async function getGuildLeagues(guildId) {
+    if (!db) return [];
+    return await db.collection('leagues').find({ guild_id: guildId }).toArray();
 }
 
 // ============================================
@@ -568,6 +579,106 @@ async function updateGametimeRSVP(messageId, update) {
     );
 }
 
+// ============================================
+// DEPTH CHART FUNCTIONS
+// ============================================
+
+async function createDepthChart(guildId, name, abbreviation) {
+    if (!db) return null;
+    
+    const depthChartData = {
+        guildId,
+        name,
+        abbreviation: abbreviation.toUpperCase(),
+        players: [], // Array of {userId, addedAt}
+        createdAt: new Date()
+    };
+
+    const result = await db.collection('depth_charts').insertOne(depthChartData);
+    return { ...depthChartData, _id: result.insertedId };
+}
+
+async function getDepthChart(guildId, abbreviation) {
+    if (!db) return null;
+    return await db.collection('depth_charts').findOne({ 
+        guildId, 
+        abbreviation: abbreviation.toUpperCase() 
+    });
+}
+
+async function getAllDepthCharts(guildId) {
+    if (!db) return [];
+    return await db.collection('depth_charts').find({ guildId }).toArray();
+}
+
+async function deleteDepthChart(guildId, abbreviation) {
+    if (!db) return false;
+    const result = await db.collection('depth_charts').deleteOne({ 
+        guildId, 
+        abbreviation: abbreviation.toUpperCase() 
+    });
+    return result.deletedCount > 0;
+}
+
+async function addPlayerToDepthChart(guildId, abbreviation, userId) {
+    if (!db) return false;
+    
+    await db.collection('depth_charts').updateOne(
+        { guildId, abbreviation: abbreviation.toUpperCase() },
+        { 
+            $push: { 
+                players: {
+                    userId,
+                    addedAt: new Date()
+                }
+            } 
+        }
+    );
+
+    return true;
+}
+
+async function removePlayerFromDepthChart(guildId, abbreviation, userId) {
+    if (!db) return false;
+    
+    await db.collection('depth_charts').updateOne(
+        { guildId, abbreviation: abbreviation.toUpperCase() },
+        { 
+            $pull: { 
+                players: { userId } 
+            } 
+        }
+    );
+
+    return true;
+}
+
+async function swapDepthChartPlayers(guildId, abbreviation, index1, index2) {
+    if (!db) return false;
+    
+    // Get current depth chart
+    const depthChart = await db.collection('depth_charts').findOne({ 
+        guildId, 
+        abbreviation: abbreviation.toUpperCase() 
+    });
+
+    if (!depthChart || !depthChart.players) {
+        throw new Error('Depth chart not found');
+    }
+
+    // Swap players in array
+    const players = [...depthChart.players];
+    [players[index1], players[index2]] = [players[index2], players[index1]];
+
+    // Update database
+    await db.collection('depth_charts').updateOne(
+        { guildId, abbreviation: abbreviation.toUpperCase() },
+        { $set: { players } }
+    );
+
+    return true;
+}
+
 module.exports = {
     initialize,
     
@@ -577,6 +688,7 @@ module.exports = {
     updateGuildSetup,
     getGuildPreferences,
     setGuildPreferences,
+    getGuildConfig,
     
     // Channels & Roles
     setGuildChannel,
@@ -588,6 +700,7 @@ module.exports = {
     createLeague,
     getLeagues,
     getLeagueByAbbr,
+    getGuildLeagues,
     
     // Users
     createOrUpdateUser,
@@ -626,5 +739,14 @@ module.exports = {
     // Gametime RSVP
     createGametimeRSVP,
     getGametimeRSVP,
-    updateGametimeRSVP
+    updateGametimeRSVP,
+
+    // Depth Charts
+    createDepthChart,
+    getDepthChart,
+    getAllDepthCharts,
+    deleteDepthChart,
+    addPlayerToDepthChart,
+    removePlayerFromDepthChart,
+    swapDepthChartPlayers
 };
