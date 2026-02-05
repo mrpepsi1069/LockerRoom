@@ -33,7 +33,7 @@ module.exports = {
         const role = interaction.options.getRole('role');
 
         // Parse times
-        const times = timesInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const times = timesInput.split(',').map(t => t.trim()).filter(t => t.length > 0);  // Line 36 - NEW CODE
 
         if (times.length < 2) {
             return interaction.reply({
