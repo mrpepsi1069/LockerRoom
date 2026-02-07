@@ -59,7 +59,28 @@ client.on(Events.InteractionCreate, async interaction => {
         return;
     }
     
-    if (!interaction.isChatInputCommand()) return;
+    client.on(Events.InteractionCreate, async interaction => {
+    if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) return;
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error(`Autocomplete error:`, error);
+        }
+        return;
+    }
+    
+    if (interaction.isButton()) {
+        if (interaction.customId.startsWith('gametime_')) {
+            await handleGametimeButton(interaction);
+        } else if (interaction.customId.startsWith('times_')) {
+            await handleTimesButton(interaction);
+        } else if (interaction.customId.startsWith('contract_')) {
+            await handleContractButton(interaction);
+        }
+        return;
+    }
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -297,6 +318,107 @@ async function handleTimesButton(interaction) {
         : `ℹ️ You haven't selected any times yet.`;
     
     await interaction.editReply({ content: responseMessage });
+}
+
+async function handleContractButton(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    
+    const parts = interaction.customId.split('_');
+    const action = parts[1]; // 'paid' or 'delete'
+    const userId = parts[2];
+    
+    const { hasCoachPerms } = require('./utils/permissions');
+    
+    // Check permissions
+    if (!await hasCoachPerms(interaction)) {
+        return interaction.editReply({
+            content: '❌ Only coaches can manage contracts!',
+            ephemeral: true
+        });
+    }
+
+    try {
+        // Get contract from database
+        const contract = await db.getContractByMessageId(interaction.message.id);
+        
+        if (!contract) {
+            return interaction.editReply({
+                content: '❌ Contract not found in database!',
+                ephemeral: true
+            });
+        }
+
+        const user = await interaction.client.users.fetch(userId).catch(() => null);
+        if (!user) {
+            return interaction.editReply({
+                content: '❌ User not found!',
+                ephemeral: true
+            });
+        }
+
+        if (action === 'paid') {
+            // Mark as paid/unpaid (toggle)
+            const newPaidStatus = !contract.paid;
+            await db.markContractPaid(interaction.guildId, userId, newPaidStatus);
+
+            // Update embed
+            const oldEmbed = interaction.message.embeds[0];
+            const newEmbed = EmbedBuilder.from(oldEmbed);
+            
+            // Update the "Paid" field
+            const fields = newEmbed.data.fields;
+            const paidFieldIndex = fields.findIndex(f => f.name === '💳 Paid');
+            
+            if (paidFieldIndex !== -1) {
+                fields[paidFieldIndex].value = newPaidStatus ? '✅ **YES**' : '❌ **NO**';
+            }
+            
+            // Change embed color based on paid status
+            newEmbed.setColor(newPaidStatus ? '#00FF00' : '#FFD700');
+
+            // Update button label
+            const buttons = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`contract_paid_${userId}`)
+                        .setLabel(newPaidStatus ? 'Mark as Unpaid' : 'Mark as Paid')
+                        .setStyle(newPaidStatus ? ButtonStyle.Secondary : ButtonStyle.Success)
+                        .setEmoji('💰'),
+                    new ButtonBuilder()
+                        .setCustomId(`contract_delete_${userId}`)
+                        .setLabel('Delete Contract')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('🗑️')
+                );
+
+            await interaction.message.edit({
+                embeds: [newEmbed],
+                components: [buttons]
+            });
+
+            await interaction.editReply({
+                content: `✅ Contract marked as **${newPaidStatus ? 'PAID' : 'UNPAID'}** for ${user}!`,
+                ephemeral: true
+            });
+
+        } else if (action === 'delete') {
+            // Delete contract
+            await db.removeContract(interaction.guildId, userId);
+            await interaction.message.delete();
+
+            await interaction.editReply({
+                content: `🗑️ Contract for ${user} has been deleted!`,
+                ephemeral: true
+            });
+        }
+
+    } catch (error) {
+        console.error('Error handling contract button:', error);
+        await interaction.editReply({
+            content: '❌ An error occurred while processing the contract!',
+            ephemeral: true
+        });
+    }
 }
 
 // Login to Discord - with error handling

@@ -390,6 +390,63 @@ async function addPlayerToLineup(lineupId, userId, position) {
     return { user_id: userId, position: position };
 }
 
+async function addContract(guildId, userId, position, amount, due, terms, paid, messageId, createdBy) {
+    if (!db) return null;
+    
+    const contract = {
+        guildId,
+        userId,
+        position,
+        amount,
+        due,
+        terms,
+        paid,
+        messageId,
+        createdBy,
+        createdAt: new Date()
+    };
+
+    const result = await db.collection('contracts').insertOne(contract);
+    return { ...contract, _id: result.insertedId };
+}
+
+async function getPlayerContract(guildId, userId) {
+    if (!db) return null;
+    return await db.collection('contracts').findOne({ guildId, userId });
+}
+
+async function getAllContracts(guildId) {
+    if (!db) return [];
+    return await db.collection('contracts').find({ guildId }).toArray();
+}
+
+async function removeContract(guildId, userId) {
+    if (!db) return false;
+    const result = await db.collection('contracts').deleteOne({ guildId, userId });
+    return result.deletedCount > 0;
+}
+
+async function markContractPaid(guildId, userId, paid = true) {
+    if (!db) return false;
+    
+    await db.collection('contracts').updateOne(
+        { guildId, userId },
+        { 
+            $set: { 
+                paid,
+                paidAt: paid ? new Date() : null
+            } 
+        }
+    );
+
+    return true;
+}
+
+async function getContractByMessageId(messageId) {
+    if (!db) return null;
+    return await db.collection('contracts').findOne({ messageId });
+}
+
 async function removePlayerFromLineup(lineupId, userId) {
     if (!db) return;
     const lineup = await db.collection('lineups').findOne({ _id: new ObjectId(lineupId) });
@@ -749,4 +806,12 @@ module.exports = {
     addPlayerToDepthChart,
     removePlayerFromDepthChart,
     swapDepthChartPlayers
+
+    // Contracts
+    addContract,
+    getPlayerContract,
+    getAllContracts,
+    removeContract,
+    markContractPaid,
+    getContractByMessageId
 };
