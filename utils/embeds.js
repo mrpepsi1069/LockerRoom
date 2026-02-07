@@ -140,7 +140,7 @@ function helpEmbed() {
 /award - Give awards`
             },
             {
-                name: '-# Lineups',
+                name: 'Lineups',
                 value:
 `/lineup-create - Create a new lineup
 /lineup-view - View a specific lineup
@@ -152,19 +152,19 @@ function helpEmbed() {
 /lineups - View all lineups`
             },
             {
-                name: '-# Depth Charts',
+                name: 'Depth Charts',
                 value:
 `/depthchart-create - Create a new depth chart
 /depthchart-delete - Delete an entire depth chart
 /depthchart-add - Add a player to depth chart
 /depthchart-remove - Remove a player from depth chart
 /depthchart-promote - Remove a player from depth chart
-/depthchart-demote - Remove a player from depth chart
-},
+/depthchart-demote - Remove a player from depth chart`
+            },
             {
-                name: '-# Lineups',
+                name: 'Contracts',
                 value:
-/contract-add - Add a player contract
+`/contract-add - Add a player contract
 /contract-remove - Remove a player contract
 /contract-post - Post all active contracts
 /activitycheck - Set activity check`
