@@ -137,15 +137,36 @@ function helpEmbed() {
 /league-add - Post recruitment
 /league-delete - Remove a league
 /ring-add - Grant rings
-/award - Give awards
-/lineup-create - Create a new lineup
+/award - Give awards`
+            },
+            {
+                name: '-# Lineups',
+                value:
+`/lineup-create - Create a new lineup
 /lineup-view - View a specific lineup
 /lineup-edit - Edit a player position in a lineup
 /lineup-delete - Delete a lineup
 /lineup-add - Add a player to a lineup
 /lineup-remove - Remove a player from a lineup
 /lineup-post - Post a lineup to a channel
-/lineups - View all lineups
+/lineups - View all lineups`
+            },
+            {
+                name: '-# Depth Charts',
+                value:
+`/depthchart-create - Create a new depth chart
+/depthchart-delete - Delete an entire depth chart
+/depthchart-add - Add a player to depth chart
+/depthchart-remove - Remove a player from depth chart
+/depthchart-promote - Remove a player from depth chart
+/depthchart-demote - Remove a player from depth chart
+},
+            {
+                name: '-# Lineups',
+                value:
+/contract-add - Add a player contract
+/contract-remove - Remove a player contract
+/contract-post - Post all active contracts
 /activitycheck - Set activity check`
             },
             {

@@ -805,7 +805,7 @@ module.exports = {
     deleteDepthChart,
     addPlayerToDepthChart,
     removePlayerFromDepthChart,
-    swapDepthChartPlayers
+    swapDepthChartPlayers,
 
     // Contracts
     addContract,

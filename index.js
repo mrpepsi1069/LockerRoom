@@ -1,6 +1,6 @@
 // index.js
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const db = require('./database');
@@ -49,28 +49,7 @@ client.on(Events.InteractionCreate, async interaction => {
         }
         return;
     }
-    
-    if (interaction.isButton()) {
-        if (interaction.customId.startsWith('gametime_')) {
-            await handleGametimeButton(interaction);
-        } else if (interaction.customId.startsWith('times_')) {
-            await handleTimesButton(interaction);
-        }
-        return;
-    }
-    
-    client.on(Events.InteractionCreate, async interaction => {
-    if (interaction.isAutocomplete()) {
-        const command = client.commands.get(interaction.commandName);
-        if (!command || !command.autocomplete) return;
-        try {
-            await command.autocomplete(interaction);
-        } catch (error) {
-            console.error(`Autocomplete error:`, error);
-        }
-        return;
-    }
-    
+
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('gametime_')) {
             await handleGametimeButton(interaction);
