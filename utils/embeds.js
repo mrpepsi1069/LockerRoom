@@ -176,14 +176,7 @@ function helpEmbed() {
 /role - Role a user a role
 /unrole - Unrole a user a role
 /adminkick - Kick a user
-/adminban - ban a user
-/change-pfp - (disabled) Change bot picture (Premium)
-/change-botname - Change bot name (Premium)
-
-Bot Owner (only accessed by ghostie):
-/add-premium - Add Premium to a guild
-/revoke-premium - Revoke Premium from a guild
-/guilds - View all guilds and invite links`
+/adminban - ban a user`
             }
         )
         .setColor(DEFAULT_COLOR)
