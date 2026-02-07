@@ -1,10 +1,10 @@
-// commands/adminban.js
+// commands/ban.js
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { errorEmbed, successEmbed } = require('../utils/embeds');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('adminban')
+        .setName('ban')
         .setDescription('Ban a user from the server (Admin only)')
         .addUserOption(option =>
             option.setName('user')

@@ -1,10 +1,10 @@
-// commands/adminkick.js
+// commands/kick.js
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { errorEmbed, successEmbed } = require('../utils/embeds');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('adminkick')
+        .setName('kick')
         .setDescription('Kick a user from the server (Admin only)')
         .addUserOption(option =>
             option.setName('user')

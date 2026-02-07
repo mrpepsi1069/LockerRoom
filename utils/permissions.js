@@ -1,80 +1,54 @@
-// utils/permissions.js - Permission checking functions
+// utils/permissions.js - Updated without premium functions
 const db = require('../database');
 
-async function isOwner(userId) {
-    const owners = [process.env.OWNER_ID, process.env.OWNER_ID_2];
-    return owners.includes(userId);
-}
+async function hasOwnerPerms(interaction) {
+    // Server owner always has permission
+    if (interaction.guild.ownerId === interaction.user.id) {
+        return true;
+    }
 
-async function isAdmin(interaction) {
-    return interaction.member.permissions.has('Administrator');
-}
-
-async function isManager(interaction) {
+    // Check for Owner role from setup
     const roles = await db.getGuildRoles(interaction.guildId);
-    if (!roles.manager) return false;
-    return interaction.member.roles.cache.has(roles.manager);
-}
+    if (roles.owner) {
+        return interaction.member.roles.cache.has(roles.owner);
+    }
 
-async function isStaff(interaction) {
-    const roles = await db.getGuildRoles(interaction.guildId);
-    if (!roles.staff) return false;
-    return interaction.member.roles.cache.has(roles.staff);
-}
-
-async function hasManagerPerms(interaction) {
-    // Check if user is admin, manager, or owner
-    if (await isOwner(interaction.user.id)) return true;
-    if (await isAdmin(interaction)) return true;
-    if (await isManager(interaction)) return true;
     return false;
+}
+
+async function hasCoachPerms(interaction) {
+    // Server owner always has permission
+    if (interaction.guild.ownerId === interaction.user.id) {
+        return true;
+    }
+
+    const roles = await db.getGuildRoles(interaction.guildId);
+    
+    // Check Owner role
+    if (roles.owner && interaction.member.roles.cache.has(roles.owner)) {
+        return true;
+    }
+
+    // Check Coach role
+    if (roles.coach && interaction.member.roles.cache.has(roles.coach)) {
+        return true;
+    }
+
+    return false;
+}
+
+// Alias for backwards compatibility
+async function hasManagerPerms(interaction) {
+    return await hasCoachPerms(interaction);
 }
 
 async function hasStaffPerms(interaction) {
-    // Check if user has staff perms or higher
-    if (await hasManagerPerms(interaction)) return true;
-    if (await isStaff(interaction)) return true;
-    return false;
-}
-
-async function checkPremium(guildId) {
-    const guild = await db.getGuild(guildId);
-    if (!guild) return false;
-    
-    // Check if premium and not expired
-    if (guild.premium) {
-        if (!guild.premium_expires_at) return true; // Lifetime premium
-        if (new Date(guild.premium_expires_at) > new Date()) return true;
-    }
-    
-    return false;
-}
-
-async function checkPremium(guildId) {
-    const guild = await db.getGuild(guildId);
-    if (!guild) return false;
-    
-    // Check if premium and not expired
-    if (guild.premium) {
-        if (!guild.premium_expires_at) return true; // Lifetime premium
-        if (new Date(guild.premium_expires_at) > new Date()) return true;
-    }
-    
-    return false;
-}
-
-async function requireSetup(interaction) {
-    const guild = await db.getGuild(interaction.guildId);
-    return guild && guild.setup_completed;
+    return await hasCoachPerms(interaction);
 }
 
 module.exports = {
-    isOwner,
-    isAdmin,
-    isManager,
-    isStaff,
+    hasOwnerPerms,
+    hasCoachPerms,
     hasManagerPerms,
-    hasStaffPerms,
-    checkPremium,
-    requireSetup
+    hasStaffPerms
 };

@@ -1,13 +1,13 @@
-// commands/depthchart.js - All depth chart commands in one file
+// commands/depthchart.js - WITHOUT premium checks
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { hasManagerPerms } = require('../utils/permissions');
+const { hasCoachPerms } = require('../utils/permissions');
 const { successEmbed, errorEmbed } = require('../utils/embeds');
 const db = require('../database');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('depthchart')
-        .setDescription('Manage team depth charts (Premium)')
+        .setDescription('Manage team depth charts')
         .addSubcommand(subcommand =>
             subcommand
                 .setName('create')
@@ -112,7 +112,6 @@ module.exports = {
     async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
 
-        // Route to appropriate handler
         switch (subcommand) {
             case 'create':
                 return await handleCreate(interaction);
@@ -132,14 +131,10 @@ module.exports = {
     }
 };
 
-// ============================================================================
-// SUBCOMMAND HANDLERS
-// ============================================================================
-
 async function handleCreate(interaction) {
-    if (!await hasManagerPerms(interaction)) {
+    if (!await hasCoachPerms(interaction)) {
         return interaction.reply({
-            embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+            embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
             ephemeral: true
         });
     }
@@ -175,9 +170,9 @@ async function handleCreate(interaction) {
 }
 
 async function handleAdd(interaction) {
-    if (!await hasManagerPerms(interaction)) {
+    if (!await hasCoachPerms(interaction)) {
         return interaction.reply({
-            embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+            embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
             ephemeral: true
         });
     }
@@ -221,9 +216,9 @@ async function handleAdd(interaction) {
 }
 
 async function handleRemove(interaction) {
-    if (!await hasManagerPerms(interaction)) {
+    if (!await hasCoachPerms(interaction)) {
         return interaction.reply({
-            embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+            embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
             ephemeral: true
         });
     }
@@ -265,9 +260,9 @@ async function handleRemove(interaction) {
 }
 
 async function handlePromote(interaction) {
-    if (!await hasManagerPerms(interaction)) {
+    if (!await hasCoachPerms(interaction)) {
         return interaction.reply({
-            embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+            embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
             ephemeral: true
         });
     }
@@ -326,9 +321,9 @@ async function handlePromote(interaction) {
 }
 
 async function handleDemote(interaction) {
-    if (!await hasManagerPerms(interaction)) {
+    if (!await hasCoachPerms(interaction)) {
         return interaction.reply({
-            embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+            embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
             ephemeral: true
         });
     }
@@ -442,9 +437,9 @@ async function handlePost(interaction) {
 }
 
 async function handleDelete(interaction) {
-    if (!await hasManagerPerms(interaction)) {
+    if (!await hasCoachPerms(interaction)) {
         return interaction.reply({
-            embeds: [errorEmbed('Permission Denied', 'You need Manager role or higher!')],
+            embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
             ephemeral: true
         });
     }

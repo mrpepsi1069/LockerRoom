@@ -1,143 +1,89 @@
-// commands/setup.js
+// commands/setup.js - Updated setup command
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
-const db = require('../database');
 const { successEmbed, errorEmbed } = require('../utils/embeds');
+const db = require('../database');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('setup')
-        .setDescription('Configure bot settings (Administrator only)')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addRoleOption(option =>
-            option.setName('gt_role')
-                .setDescription('Game Time role (role to ping for games)')
-                .setRequired(false))
+        .setDescription('Set up the bot for your server')
         .addChannelOption(option =>
-            option.setName('history_channel')
-                .setDescription('History channel (for game logs/records)')
+            option.setName('leaguelogchannel')
+                .setDescription('Channel for league logs')
                 .addChannelTypes(ChannelType.GuildText)
-                .setRequired(false))
+                .setRequired(true))
         .addChannelOption(option =>
-            option.setName('league_log_channel')
-                .setDescription('League log channel (for league updates)')
+            option.setName('historychannel')
+                .setDescription('Channel for team history')
                 .addChannelTypes(ChannelType.GuildText)
-                .setRequired(false))
+                .setRequired(true))
         .addChannelOption(option =>
-            option.setName('sign_request_channel')
-                .setDescription('Sign request channel (for recruitment)')
+            option.setName('logchannel')
+                .setDescription('Channel for bot logs')
                 .addChannelTypes(ChannelType.GuildText)
-                .setRequired(false))
+                .setRequired(true))
         .addChannelOption(option =>
-            option.setName('offer_accept_channel')
-                .setDescription('Offer accept channel (for contract acceptances)')
+            option.setName('contractchannel')
+                .setDescription('Channel for player contracts')
                 .addChannelTypes(ChannelType.GuildText)
-                .setRequired(false))
+                .setRequired(true))
         .addRoleOption(option =>
-            option.setName('staff_role')
-                .setDescription('Staff role (can use staff commands)')
-                .setRequired(false))
+            option.setName('coachrole')
+                .setDescription('Coach role')
+                .setRequired(true))
         .addRoleOption(option =>
-            option.setName('manager_role')
-                .setDescription('Manager role (can manage lineups, awards, etc.)')
-                .setRequired(false))
-        .addRoleOption(option =>
-            option.setName('anchor_role')
-                .setDescription('Anchor role (team anchor/leader role)')
-                .setRequired(false)),
-    
+            option.setName('ownerrole')
+                .setDescription('Owner role')
+                .setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
     async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
         try {
-            // Respond immediately
-            await interaction.reply({ 
-                content: '⏳ Setting up...', 
-                ephemeral: true 
-            });
+            const leagueLogChannel = interaction.options.getChannel('leaguelogchannel');
+            const historyChannel = interaction.options.getChannel('historychannel');
+            const logChannel = interaction.options.getChannel('logchannel');
+            const contractChannel = interaction.options.getChannel('contractchannel');
+            const coachRole = interaction.options.getRole('coachrole');
+            const ownerRole = interaction.options.getRole('ownerrole');
 
             // Ensure guild exists in database
             await db.createGuild(interaction.guildId, interaction.guild.name);
 
-            // Get all the options
-            const gtRole = interaction.options.getRole('gt_role');
-            const historyChannel = interaction.options.getChannel('history_channel');
-            const leagueLogChannel = interaction.options.getChannel('league_log_channel');
-            const signRequestChannel = interaction.options.getChannel('sign_request_channel');
-            const offerAcceptChannel = interaction.options.getChannel('offer_accept_channel');
-            const staffRole = interaction.options.getRole('staff_role');
-            const managerRole = interaction.options.getRole('manager_role');
-            const anchorRole = interaction.options.getRole('anchor_role');
+            // Store channels
+            await db.setGuildChannel(interaction.guildId, 'league_log', leagueLogChannel.id);
+            await db.setGuildChannel(interaction.guildId, 'history', historyChannel.id);
+            await db.setGuildChannel(interaction.guildId, 'log', logChannel.id);
+            await db.setGuildChannel(interaction.guildId, 'contract', contractChannel.id);
 
-            // Check if at least one option was provided
-            if (!gtRole && !historyChannel && !leagueLogChannel && !signRequestChannel && 
-                !offerAcceptChannel && !staffRole && !managerRole && !anchorRole) {
-                return interaction.editReply({
-                    content: null,
-                    embeds: [errorEmbed('No Changes', 'Please provide at least one option to configure.')]
-                });
-            }
-
-            const updates = [];
-
-            // Update channels
-            if (historyChannel) {
-                await db.setGuildChannel(interaction.guildId, 'history', historyChannel.id);
-                updates.push(`📜 History Channel: ${historyChannel}`);
-            }
-            if (leagueLogChannel) {
-                await db.setGuildChannel(interaction.guildId, 'league_log', leagueLogChannel.id);
-                updates.push(`📋 League Log Channel: ${leagueLogChannel}`);
-            }
-            if (signRequestChannel) {
-                await db.setGuildChannel(interaction.guildId, 'sign_request', signRequestChannel.id);
-                updates.push(`✍️ Sign Request Channel: ${signRequestChannel}`);
-            }
-            if (offerAcceptChannel) {
-                await db.setGuildChannel(interaction.guildId, 'offer_accept', offerAcceptChannel.id);
-                updates.push(`✅ Offer Accept Channel: ${offerAcceptChannel}`);
-            }
-
-            // Update roles
-            if (gtRole) {
-                await db.setGuildRole(interaction.guildId, 'gt_role', gtRole.id);
-                updates.push(`🎮 Game Time Role: ${gtRole}`);
-            }
-            if (staffRole) {
-                await db.setGuildRole(interaction.guildId, 'staff', staffRole.id);
-                updates.push(`👮 Staff Role: ${staffRole}`);
-            }
-            if (managerRole) {
-                await db.setGuildRole(interaction.guildId, 'manager', managerRole.id);
-                updates.push(`👑 Manager Role: ${managerRole}`);
-            }
-            if (anchorRole) {
-                await db.setGuildRole(interaction.guildId, 'anchor', anchorRole.id);
-                updates.push(`⚓ Anchor Role: ${anchorRole}`);
-            }
+            // Store roles
+            await db.setGuildRole(interaction.guildId, 'coach', coachRole.id);
+            await db.setGuildRole(interaction.guildId, 'owner', ownerRole.id);
 
             // Mark setup as completed
             await db.updateGuildSetup(interaction.guildId, true);
 
             const embed = successEmbed(
-                '✅ Setup Updated',
-                `Successfully updated bot configuration:\n\n${updates.join('\n')}`
+                '✅ Setup Complete',
+                '**Channels:**\n' +
+                `League Log: ${leagueLogChannel}\n` +
+                `History: ${historyChannel}\n` +
+                `Log: ${logChannel}\n` +
+                `Contract: ${contractChannel}\n\n` +
+                '**Roles:**\n' +
+                `Coach: ${coachRole}\n` +
+                `Owner: ${ownerRole}\n\n` +
+                'Your server is now configured!'
             );
 
-            await interaction.editReply({ 
-                content: null,
-                embeds: [embed] 
-            });
+            await interaction.editReply({ embeds: [embed] });
+
         } catch (error) {
-            console.error('Setup command error:', error);
-            
-            const errorResponse = {
-                content: null,
-                embeds: [errorEmbed('Setup Failed', `An error occurred: ${error.message}`)]
-            };
-            
-            if (interaction.replied || interaction.deferred) {
-                await interaction.editReply(errorResponse);
-            } else {
-                await interaction.reply({ ...errorResponse, ephemeral: true });
-            }
+            console.error('Setup error:', error);
+            await interaction.editReply({
+                embeds: [errorEmbed('Setup Failed', 'An error occurred during setup. Please try again.')]
+            });
         }
     }
 };
