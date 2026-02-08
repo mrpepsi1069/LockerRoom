@@ -1,4 +1,4 @@
-// commands/gametime.js - Updated with auto-DM and synchronized voting
+// commands/gametime.js - Updated with auto-DM, synchronized voting, and jump link
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../database');
 const { errorEmbed, successEmbed } = require('../utils/embeds');
@@ -36,20 +36,19 @@ module.exports = {
 
         await interaction.deferReply({ ephemeral: true });
 
-        // Initial embed for channel
+        // Channel poll embed
         const embed = new EmbedBuilder()
             .setTitle('⏰ Gametime Scheduled')
             .setDescription(`**League:** ${league}\n**Time:** ${time}`)
             .addFields(
-                { name: '✅ Can Make (0)', value: '• None yet', inline: false },
-                { name: '❌ Can\'t Make (0)', value: '• None yet', inline: false },
-                { name: '❓ Unsure (0)', value: '• None yet', inline: false }
+                { name: '✅ Can Make (0)', value: '• None yet' },
+                { name: '❌ Can\'t Make (0)', value: '• None yet' },
+                { name: '❓ Unsure (0)', value: '• None yet' }
             )
             .setColor('#5865F2')
             .setFooter({ text: 'LockerRoom | Gametime Manager' })
             .setTimestamp();
 
-        // Buttons for channel message
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -69,14 +68,17 @@ module.exports = {
                     .setEmoji('❓')
             );
 
-        // Send message to channel
+        // Send poll
         const message = await interaction.channel.send({
-            content: `${role}`, // pings the role
+            content: `${role}`,
             embeds: [embed],
             components: [row]
         });
 
-        // Store gametime in DB
+        // 🔗 Create jump link to this poll
+        const jumpLink = `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${message.id}`;
+
+        // Save to DB
         try {
             await db.createGametime(
                 interaction.guildId,
@@ -89,18 +91,18 @@ module.exports = {
                 interaction.user.id
             );
         } catch (error) {
-            console.log('Error saving gametime to DB:', error);
+            console.log('DB error:', error);
         }
 
-        // DM all role members with interactive buttons
+        // DM role members
         try {
             const members = await interaction.guild.members.fetch();
             const roleMembers = members.filter(m => m.roles.cache.has(role.id) && !m.user.bot);
 
             let dmCount = 0;
+
             for (const [, member] of roleMembers) {
                 try {
-                    // Create DM embed matching the screenshot
                     const dmEmbed = new EmbedBuilder()
                         .setAuthor({ 
                             name: interaction.guild.name,
@@ -112,11 +114,14 @@ module.exports = {
                             `**Time:** ${time}\n\n` +
                             `Can you make it?`
                         )
+                        .addFields({
+                            name: '🔗 Jump to Poll',
+                            value: `[Click Here](${jumpLink})`
+                        })
                         .setColor('#5865F2')
                         .setFooter({ text: 'LockerRoom Bot' })
                         .setTimestamp();
 
-                    // Buttons for DM (same customId so they update the main poll)
                     const dmButtons = new ActionRowBuilder()
                         .addComponents(
                             new ButtonBuilder()
@@ -137,32 +142,28 @@ module.exports = {
                         embeds: [dmEmbed],
                         components: [dmButtons]
                     });
+
                     dmCount++;
-                    
-                    // Small delay to avoid rate limits
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } catch (err) {
-                    console.log(`Could not DM ${member.user.tag}`);
+                    await new Promise(r => setTimeout(r, 800));
+
+                } catch {
+                    console.log(`Couldn't DM ${member.user.tag}`);
                 }
             }
-            console.log(`✉️ Sent ${dmCount} DM notifications for gametime poll`);
 
             await interaction.editReply({
                 embeds: [successEmbed(
-                    'Gametime Created', 
-                    `✅ Created gametime poll for **${league}**\n` +
-                    `📨 Sent ${dmCount} DM notifications\n` +
-                    `⏰ Time: ${time}`
+                    'Gametime Created',
+                    `✅ Created poll for **${league}**\n📨 ${dmCount} DMs sent\n⏰ ${time}`
                 )]
             });
 
         } catch (err) {
-            console.error('Error sending DMs:', err);
+            console.error(err);
             await interaction.editReply({
                 embeds: [successEmbed(
-                    'Gametime Created', 
-                    `✅ Created gametime poll for **${league}**\n` +
-                    `⚠️ Some DMs could not be sent (users have DMs disabled)`
+                    'Gametime Created',
+                    `✅ Poll created\n⚠️ Some DMs failed`
                 )]
             });
         }
