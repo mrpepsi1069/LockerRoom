@@ -161,8 +161,43 @@ async function handleGametimeButton(interaction) {
     // Defer immediately to prevent timeout
     await interaction.deferReply({ ephemeral: true });
     
-    const response = interaction.customId.split('_')[1];
-    const message = interaction.message;
+    const parts = interaction.customId.split('_');
+    const response = parts[1]; // 'yes', 'no', or 'unsure'
+    const messageId = parts[2]; // Message ID if clicked from DM
+    
+    let message;
+    let isFromDM = false;
+    
+    // Check if this is from a DM (has messageId) or from channel
+    if (messageId) {
+        // Button clicked from DM - need to fetch the original channel message
+        isFromDM = true;
+        
+        try {
+            // Get gametime from database to find the channel
+            const gametime = await db.getGametimeByMessageId(messageId);
+            
+            if (!gametime) {
+                return interaction.editReply({ 
+                    content: '❌ Could not find the original gametime poll. It may have been deleted.' 
+                });
+            }
+            
+            // Fetch the channel and message
+            const channel = await interaction.client.channels.fetch(gametime.channelId);
+            message = await channel.messages.fetch(messageId);
+            
+        } catch (error) {
+            console.error('Error fetching gametime message:', error);
+            return interaction.editReply({ 
+                content: '❌ Could not update the poll. The message may have been deleted.' 
+            });
+        }
+    } else {
+        // Button clicked from channel message
+        message = interaction.message;
+    }
+    
     const embed = message.embeds[0];
     
     if (!embed) {
@@ -174,7 +209,7 @@ async function handleGametimeButton(interaction) {
     const cantMakeField = embed.fields[1];
     const unsureField = embed.fields[2];
 
-    // Extract user IDs from mentions instead of display names
+    // Extract user IDs from mentions
     const extractUserIds = (fieldValue) => {
         if (fieldValue === '• None yet') return [];
         const mentionRegex = /<@(\d+)>/g;
@@ -214,10 +249,23 @@ async function handleGametimeButton(interaction) {
         { name: `❓ Unsure (${unsure.length})`, value: formatList(unsure), inline: false }
     );
 
+    // Update the channel message
     await message.edit({ embeds: [newEmbed] });
-    await interaction.editReply({ 
-        content: `✅ Response recorded: **${response === 'yes' ? 'Can Make' : response === 'no' ? 'Can\'t Make' : 'Unsure'}**`
-    });
+    
+    // Send different responses for DM vs channel
+    const responseText = response === 'yes' ? 'Can Make ✅' : 
+                        response === 'no' ? 'Can\'t Make ❌' : 
+                        'Unsure ❓';
+    
+    if (isFromDM) {
+        await interaction.editReply({ 
+            content: `✅ Your response has been recorded: **${responseText}**\n\nThe poll in the server has been updated!`
+        });
+    } else {
+        await interaction.editReply({ 
+            content: `✅ Response recorded: **${responseText}**`
+        });
+    }
 }
 
 async function handleTimesButton(interaction) {

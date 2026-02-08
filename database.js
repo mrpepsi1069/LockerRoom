@@ -127,6 +127,8 @@ async function getGuildChannels(guildId) {
     }, {});
 }
 
+
+
 async function setGuildRole(guildId, roleType, roleId) {
     if (!db) return;
     await db.collection('guild_roles').updateOne(
@@ -469,11 +471,11 @@ async function deleteLineup(guildId, lineupName) {
 // GAMETIME FUNCTIONS
 // ============================================
 
-async function createGametime(guildId, leagueId, gameTime, messageId, channelId, pingRoleId, createdBy) {
+async function createGametime(guildId, league, gameTime, createdAt, messageId, channelId, pingRoleId, createdBy) {
     if (!db) return null;
     const gametime = {
         guild_id: guildId,
-        league_id: leagueId ? String(leagueId) : null,
+        league: league,  // ADD THIS LINE
         game_time: gameTime,
         message_id: messageId,
         channel_id: channelId,
@@ -481,7 +483,7 @@ async function createGametime(guildId, leagueId, gameTime, messageId, channelId,
         created_by: createdBy,
         is_active: true,
         responses: [],
-        created_at: new Date()
+        created_at: createdAt
     };
     
     const result = await db.collection('gametimes').insertOne(gametime);
@@ -525,6 +527,11 @@ async function getGametimeAttendance(gametimeId) {
             user_id: resp.user_id
         };
     });
+}
+
+async function getGametimeByMessageId(messageId) {
+    if (!db) return null;
+    return await db.collection('gametimes').findOne({ message_id: messageId });
 }
 
 // ============================================
@@ -780,6 +787,7 @@ module.exports = {
     createGametime,
     recordAttendance,
     getGametimeAttendance,
+    getGametimeByMessageId,
     
     // Activity Checks
     createActivityCheck,
