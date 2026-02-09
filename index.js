@@ -1,4 +1,4 @@
-// index.js
+// index.js - COMPLETE WITH ALL FIXES
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, Events, ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
@@ -57,9 +57,13 @@ client.on(Events.InteractionCreate, async interaction => {
             await handleTimesButton(interaction);
         } else if (interaction.customId.startsWith('contract_')) {
             await handleContractButton(interaction);
+        } else if (interaction.customId.startsWith('league_signup_')) {
+            await handleLeagueSignupButton(interaction);
         }
         return;
     }
+
+    if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -71,7 +75,7 @@ client.on(Events.InteractionCreate, async interaction => {
         await command.execute(interaction);
     } catch (error) {
         console.error(`❌ Command error:`, error);
-        const errorMessage = { content: '❌ Error executing command!', ephemeral: true };
+        const errorMessage = { content: '❌ Error executing command!', flags: 64 };
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp(errorMessage);
         } else {
@@ -85,20 +89,17 @@ client.on(Events.GuildCreate, async guild => {
     await db.createGuild(guild.id, guild.name);
 });
 
-// Error handling for client
 client.on('error', error => {
     console.error('❌ Discord client error:', error);
 });
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
-    // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Content-Type', 'application/json');
 
-    // Handle preflight
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
@@ -107,7 +108,6 @@ const server = http.createServer((req, res) => {
 
     const url = req.url;
 
-    // Root endpoint - Basic stats
     if (url === '/' || url === '/api/stats') {
         const stats = {
             status: 'online',
@@ -122,20 +122,18 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Guild list endpoint (public - shows basic info)
     if (url === '/api/guilds') {
         const guilds = Array.from(client.guilds.cache.values()).map(guild => ({
             name: guild.name,
             memberCount: guild.memberCount,
-            id: guild.id.slice(0, 4) + '****' // Partial ID for privacy
-        })).sort((a, b) => b.memberCount - a.memberCount); // Sort by size
+            id: guild.id.slice(0, 4) + '****'
+        })).sort((a, b) => b.memberCount - a.memberCount);
 
         res.writeHead(200);
         res.end(JSON.stringify(guilds, null, 2));
         return;
     }
 
-    // Health check endpoint
     if (url === '/health') {
         res.writeHead(200);
         res.end(JSON.stringify({ 
@@ -145,7 +143,6 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // 404 for other routes
     res.writeHead(404);
     res.end(JSON.stringify({ error: 'Not found' }));
 });
@@ -157,24 +154,24 @@ server.listen(PORT, () => {
 process.on('unhandledRejection', error => console.error('❌ Unhandled rejection:', error));
 process.on('uncaughtException', error => console.error('❌ Uncaught exception:', error));
 
+// ============================================================================
+// BUTTON HANDLERS
+// ============================================================================
+
 async function handleGametimeButton(interaction) {
-    // Defer immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
     
     const parts = interaction.customId.split('_');
-    const response = parts[1]; // 'yes', 'no', or 'unsure'
-    const messageId = parts[2]; // Message ID if clicked from DM
+    const response = parts[1];
+    const messageId = parts[2];
     
     let message;
     let isFromDM = false;
     
-    // Check if this is from a DM (has messageId) or from channel
     if (messageId) {
-        // Button clicked from DM - need to fetch the original channel message
         isFromDM = true;
         
         try {
-            // Get gametime from database to find the channel
             const gametime = await db.getGametimeByMessageId(messageId);
             
             if (!gametime) {
@@ -182,9 +179,24 @@ async function handleGametimeButton(interaction) {
                     content: '❌ Could not find the original gametime poll. It may have been deleted.' 
                 });
             }
+
+            const channelId = gametime.channelId || gametime.channel_id;
             
-            // Fetch the channel and message
-            const channel = await interaction.client.channels.fetch(gametime.channelId);
+            if (!channelId) {
+                console.error('Gametime missing channel ID:', gametime);
+                return interaction.editReply({ 
+                    content: '❌ Poll data is corrupted. Please create a new gametime poll.' 
+                });
+            }
+            
+            const channel = await interaction.client.channels.fetch(channelId);
+            
+            if (!channel) {
+                return interaction.editReply({ 
+                    content: '❌ Could not find the poll channel. It may have been deleted.' 
+                });
+            }
+            
             message = await channel.messages.fetch(messageId);
             
         } catch (error) {
@@ -194,7 +206,6 @@ async function handleGametimeButton(interaction) {
             });
         }
     } else {
-        // Button clicked from channel message
         message = interaction.message;
     }
     
@@ -209,7 +220,6 @@ async function handleGametimeButton(interaction) {
     const cantMakeField = embed.fields[1];
     const unsureField = embed.fields[2];
 
-    // Extract user IDs from mentions
     const extractUserIds = (fieldValue) => {
         if (fieldValue === '• None yet') return [];
         const mentionRegex = /<@(\d+)>/g;
@@ -227,17 +237,14 @@ async function handleGametimeButton(interaction) {
 
     const userId = interaction.user.id;
 
-    // Remove user from all lists
     canMake = canMake.filter(id => id !== userId);
     cantMake = cantMake.filter(id => id !== userId);
     unsure = unsure.filter(id => id !== userId);
 
-    // Add user to selected list
     if (response === 'yes') canMake.push(userId);
     else if (response === 'no') cantMake.push(userId);
     else if (response === 'unsure') unsure.push(userId);
 
-    // Format lists with mentions only
     const formatList = (list) => {
         if (list.length === 0) return '• None yet';
         return list.map(id => `• <@${id}>`).join('\n');
@@ -249,10 +256,8 @@ async function handleGametimeButton(interaction) {
         { name: `❓ Unsure (${unsure.length})`, value: formatList(unsure), inline: false }
     );
 
-    // Update the channel message
     await message.edit({ embeds: [newEmbed] });
     
-    // Send different responses for DM vs channel
     const responseText = response === 'yes' ? 'Can Make ✅' : 
                         response === 'no' ? 'Can\'t Make ❌' : 
                         'Unsure ❓';
@@ -269,14 +274,13 @@ async function handleGametimeButton(interaction) {
 }
 
 async function handleTimesButton(interaction) {
-    // Defer immediately to prevent timeout
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
     
     const parts = interaction.customId.split('_');
     const timeIndex = parts[1];
-    const selectedTime = parts.slice(2).join('_');
     const message = interaction.message;
     const embed = message.embeds[0];
+    
     if (!embed) {
         await interaction.editReply({ content: '❌ Error: Could not find embed data.' });
         return;
@@ -295,7 +299,6 @@ async function handleTimesButton(interaction) {
             currentTime = line.replace('🕐 **', '').replace('**', '');
             currentUsers = [];
         } else if (line.startsWith('• ') && currentTime) {
-            // Extract user IDs from mentions
             const mentionRegex = /<@(\d+)>/g;
             let match;
             const users = [];
@@ -307,20 +310,16 @@ async function handleTimesButton(interaction) {
     }
     if (currentTime) timeSections.push({ time: currentTime, users: currentUsers });
     
-    // Toggle user selection for this time
     const index = parseInt(timeIndex);
     if (timeSections[index]) {
         const userIndex = timeSections[index].users.indexOf(userId);
         if (userIndex > -1) {
-            // User already selected this time, remove them
             timeSections[index].users.splice(userIndex, 1);
         } else {
-            // User hasn't selected this time, add them
             timeSections[index].users.push(userId);
         }
     }
     
-    // Rebuild description with user mentions
     const leagueLine = lines[0];
     let newDescription = leagueLine + '\n\n';
     timeSections.forEach(section => {
@@ -335,9 +334,8 @@ async function handleTimesButton(interaction) {
     const newEmbed = EmbedBuilder.from(embed).setDescription(newDescription.trim());
     await message.edit({ embeds: [newEmbed] });
     
-    // Show user their current selections
     const userSelections = timeSections
-        .map((section, idx) => section.users.includes(userId) ? section.time : null)
+        .map((section) => section.users.includes(userId) ? section.time : null)
         .filter(Boolean);
     
     const responseMessage = userSelections.length > 0
@@ -348,51 +346,43 @@ async function handleTimesButton(interaction) {
 }
 
 async function handleContractButton(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
     
     const parts = interaction.customId.split('_');
-    const action = parts[1]; // 'paid' or 'delete'
+    const action = parts[1];
     const userId = parts[2];
     
     const { hasCoachPerms } = require('./utils/permissions');
     
-    // Check permissions
     if (!await hasCoachPerms(interaction)) {
         return interaction.editReply({
-            content: '❌ Only coaches can manage contracts!',
-            ephemeral: true
+            content: '❌ Only coaches can manage contracts!'
         });
     }
 
     try {
-        // Get contract from database
         const contract = await db.getContractByMessageId(interaction.message.id);
         
         if (!contract) {
             return interaction.editReply({
-                content: '❌ Contract not found in database!',
-                ephemeral: true
+                content: '❌ Contract not found in database!'
             });
         }
 
         const user = await interaction.client.users.fetch(userId).catch(() => null);
         if (!user) {
             return interaction.editReply({
-                content: '❌ User not found!',
-                ephemeral: true
+                content: '❌ User not found!'
             });
         }
 
         if (action === 'paid') {
-            // Mark as paid/unpaid (toggle)
             const newPaidStatus = !contract.paid;
             await db.markContractPaid(interaction.guildId, userId, newPaidStatus);
 
-            // Update embed
             const oldEmbed = interaction.message.embeds[0];
             const newEmbed = EmbedBuilder.from(oldEmbed);
             
-            // Update the "Paid" field
             const fields = newEmbed.data.fields;
             const paidFieldIndex = fields.findIndex(f => f.name === '💳 Paid');
             
@@ -400,10 +390,8 @@ async function handleContractButton(interaction) {
                 fields[paidFieldIndex].value = newPaidStatus ? '✅ **YES**' : '❌ **NO**';
             }
             
-            // Change embed color based on paid status
             newEmbed.setColor(newPaidStatus ? '#00FF00' : '#FFD700');
 
-            // Update button label
             const buttons = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -424,51 +412,118 @@ async function handleContractButton(interaction) {
             });
 
             await interaction.editReply({
-                content: `✅ Contract marked as **${newPaidStatus ? 'PAID' : 'UNPAID'}** for ${user}!`,
-                ephemeral: true
+                content: `✅ Contract marked as **${newPaidStatus ? 'PAID' : 'UNPAID'}** for ${user}!`
             });
 
         } else if (action === 'delete') {
-            // Delete contract
             await db.removeContract(interaction.guildId, userId);
             await interaction.message.delete();
 
             await interaction.editReply({
-                content: `🗑️ Contract for ${user} has been deleted!`,
-                ephemeral: true
+                content: `🗑️ Contract for ${user} has been deleted!`
             });
         }
 
     } catch (error) {
         console.error('Error handling contract button:', error);
         await interaction.editReply({
-            content: '❌ An error occurred while processing the contract!',
-            ephemeral: true
+            content: '❌ An error occurred while processing the contract!'
         });
     }
 }
 
-// Login to Discord - with error handling
+async function handleLeagueSignupButton(interaction) {
+    await interaction.deferReply({ flags: 64 });
+    
+    const roleId = interaction.customId.split('_')[2];
+    
+    try {
+        const role = interaction.guild.roles.cache.get(roleId);
+        
+        if (!role) {
+            return interaction.editReply({
+                content: '❌ League role not found! It may have been deleted.'
+            });
+        }
+
+        const member = interaction.member;
+
+        if (member.roles.cache.has(roleId)) {
+            await member.roles.remove(role);
+            
+            await interaction.editReply({
+                content: `✅ You have been removed from **${role.name}**!`
+            });
+        } else {
+            await member.roles.add(role);
+            
+            const league = await db.getLeagueByRoleId(interaction.guildId, roleId);
+            
+            try {
+                const welcomeEmbed = new EmbedBuilder()
+                    .setTitle('🎉 Welcome to the League!')
+                    .setDescription(`You've joined **${league ? league.league_name : role.name}**!`)
+                    .addFields(
+                        { name: '🏆 League', value: league ? league.league_name : role.name, inline: true },
+                        { name: '🏠 Server', value: interaction.guild.name, inline: true }
+                    )
+                    .setColor('#00FF00')
+                    .setFooter({ text: 'Good luck and have fun!' })
+                    .setTimestamp();
+
+                if (league && league.signup_link) {
+                    welcomeEmbed.addFields(
+                        { name: '🔗 League Link', value: `[Click here to view league](${league.signup_link})`, inline: false }
+                    );
+                }
+
+                await interaction.user.send({ embeds: [welcomeEmbed] });
+            } catch (error) {
+                console.log('Could not DM user about league signup');
+            }
+
+            await interaction.editReply({
+                content: `✅ You've been added to **${role.name}**!\n\nCheck your DMs for more information.`
+            });
+        }
+
+        const channels = await db.getGuildChannels(interaction.guildId);
+        if (channels.league_log) {
+            const logChannel = interaction.guild.channels.cache.get(channels.league_log);
+            if (logChannel) {
+                const action = member.roles.cache.has(roleId) ? 'left' : 'joined';
+                const color = action === 'left' ? '#FF0000' : '#00FF00';
+                
+                const logEmbed = new EmbedBuilder()
+                    .setDescription(`${interaction.user} ${action} ${role}`)
+                    .setColor(color)
+                    .setTimestamp();
+
+                await logChannel.send({ embeds: [logEmbed] });
+            }
+        }
+
+    } catch (error) {
+        console.error('Error handling league signup:', error);
+        await interaction.editReply({
+            content: '❌ An error occurred while updating your league membership!'
+        });
+    }
+}
+
+// Login
 console.log('🔐 Attempting to login to Discord...');
 console.log('🔍 Token exists:', !!process.env.DISCORD_TOKEN);
 console.log('🔍 Token length:', process.env.DISCORD_TOKEN?.length || 0);
 
 if (!process.env.DISCORD_TOKEN) {
     console.error('❌ DISCORD_TOKEN is not set in environment variables!');
-    console.error('❌ Please add DISCORD_TOKEN to your Render environment variables');
     process.exit(1);
 }
 
-// Add ready event listener with timeout
 const loginTimeout = setTimeout(() => {
     if (!client.user) {
         console.error('❌ Bot failed to connect within 60 seconds');
-        console.error('❌ Possible causes:');
-        console.error('   1. Invalid Discord token');
-        console.error('   2. Missing privileged gateway intents in Discord Developer Portal');
-        console.error('   3. Network connectivity issues');
-        console.error('   4. Discord API is down');
-        console.error('');
         console.error('🔧 Please check:');
         console.error('   - Discord Developer Portal > Bot > Privileged Gateway Intents');
         console.error('   - Enable: Presence Intent, Server Members Intent, Message Content Intent');
@@ -483,9 +538,6 @@ client.login(process.env.DISCORD_TOKEN)
     .catch(error => {
         clearTimeout(loginTimeout);
         console.error('❌ Failed to login to Discord:', error);
-        console.error('❌ Error name:', error.name);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error code:', error.code);
         console.error('❌ Check your DISCORD_TOKEN in environment variables');
         process.exit(1);
     });

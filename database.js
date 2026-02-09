@@ -1,4 +1,4 @@
-// database.js - MongoDB connection and query functions
+// database.js - COMPLETE VERSION WITH ALL UPDATES
 const { MongoClient, ObjectId } = require('mongodb');
 
 let client;
@@ -23,7 +23,6 @@ async function initialize() {
     } catch (error) {
         console.error('❌ MongoDB connection failed:', error.message);
         console.error('⚠️ Continuing without database');
-        // Don't exit, let bot run without DB
     }
 }
 
@@ -44,6 +43,7 @@ async function createIndexes() {
     );
     await db.collection('gametime_rsvps').createIndex({ messageId: 1 }, { unique: true });
     await db.collection('depth_charts').createIndex({ guildId: 1, abbreviation: 1 }, { unique: true });
+    await db.collection('contracts').createIndex({ guildId: 1, userId: 1 }, { unique: true });
 }
 
 // ============================================
@@ -127,8 +127,6 @@ async function getGuildChannels(guildId) {
     }, {});
 }
 
-
-
 async function setGuildRole(guildId, roleType, roleId) {
     if (!db) return;
     await db.collection('guild_roles').updateOne(
@@ -148,16 +146,17 @@ async function getGuildRoles(guildId) {
 }
 
 // ============================================
-// LEAGUE FUNCTIONS
+// LEAGUE FUNCTIONS - UPDATED
 // ============================================
 
-async function createLeague(guildId, leagueName, leagueAbbr, signupLink = null) {
+async function createLeague(guildId, leagueName, leagueAbbr, signupLink = null, roleId = null) {
     if (!db) return null;
     const league = {
         guild_id: guildId,
         league_name: leagueName,
         league_abbr: leagueAbbr.toUpperCase(),
         signup_link: signupLink,
+        role_id: roleId,  // NEW: Added roleId
         is_active: true,
         created_at: new Date()
     };
@@ -176,9 +175,26 @@ async function getLeagueByAbbr(guildId, leagueAbbr) {
     return await db.collection('leagues').findOne({ guild_id: guildId, league_abbr: leagueAbbr.toUpperCase() });
 }
 
+async function getLeagueByRoleId(guildId, roleId) {
+    if (!db) return null;
+    return await db.collection('leagues').findOne({ 
+        guild_id: guildId, 
+        role_id: roleId 
+    });
+}
+
 async function getGuildLeagues(guildId) {
     if (!db) return [];
     return await db.collection('leagues').find({ guild_id: guildId }).toArray();
+}
+
+async function deleteLeague(guildId, leagueAbbr) {
+    if (!db) return false;
+    const result = await db.collection('leagues').deleteOne({ 
+        guild_id: guildId, 
+        league_abbr: leagueAbbr.toUpperCase() 
+    });
+    return result.deletedCount > 0;
 }
 
 // ============================================
@@ -233,7 +249,7 @@ async function addChampionshipRing(guildId, leagueId, userId, season, opponent, 
         const result = await db.collection('championship_rings').insertOne(ring);
         return { ...ring, _id: result.insertedId };
     } catch (error) {
-        if (error.code === 11000) { // Duplicate key
+        if (error.code === 11000) {
             return null;
         }
         throw error;
@@ -352,7 +368,6 @@ async function getLineup(guildId, lineupName) {
     const lineup = await db.collection('lineups').findOne({ guild_id: guildId, lineup_name: lineupName });
     if (!lineup) return null;
     
-    // Populate player usernames
     if (lineup.players && lineup.players.length > 0) {
         const userIds = lineup.players.map(p => p.user_id);
         const users = await db.collection('users').find({ user_id: { $in: userIds } }).toArray();
@@ -374,10 +389,8 @@ async function addPlayerToLineup(lineupId, userId, position) {
     const lineup = await db.collection('lineups').findOne({ _id: new ObjectId(lineupId) });
     if (!lineup) throw new Error('Lineup not found');
     
-    // Remove player if already exists
     let players = lineup.players.filter(p => p.user_id !== userId);
     
-    // Add player with new position
     players.push({
         user_id: userId,
         position: position,
@@ -390,63 +403,6 @@ async function addPlayerToLineup(lineupId, userId, position) {
     );
     
     return { user_id: userId, position: position };
-}
-
-async function addContract(guildId, userId, position, amount, due, terms, paid, messageId, createdBy) {
-    if (!db) return null;
-    
-    const contract = {
-        guildId,
-        userId,
-        position,
-        amount,
-        due,
-        terms,
-        paid,
-        messageId,
-        createdBy,
-        createdAt: new Date()
-    };
-
-    const result = await db.collection('contracts').insertOne(contract);
-    return { ...contract, _id: result.insertedId };
-}
-
-async function getPlayerContract(guildId, userId) {
-    if (!db) return null;
-    return await db.collection('contracts').findOne({ guildId, userId });
-}
-
-async function getAllContracts(guildId) {
-    if (!db) return [];
-    return await db.collection('contracts').find({ guildId }).toArray();
-}
-
-async function removeContract(guildId, userId) {
-    if (!db) return false;
-    const result = await db.collection('contracts').deleteOne({ guildId, userId });
-    return result.deletedCount > 0;
-}
-
-async function markContractPaid(guildId, userId, paid = true) {
-    if (!db) return false;
-    
-    await db.collection('contracts').updateOne(
-        { guildId, userId },
-        { 
-            $set: { 
-                paid,
-                paidAt: paid ? new Date() : null
-            } 
-        }
-    );
-
-    return true;
-}
-
-async function getContractByMessageId(messageId) {
-    if (!db) return null;
-    return await db.collection('contracts').findOne({ messageId });
 }
 
 async function removePlayerFromLineup(lineupId, userId) {
@@ -475,10 +431,13 @@ async function createGametime(guildId, league, gameTime, createdAt, messageId, c
     if (!db) return null;
     const gametime = {
         guild_id: guildId,
-        league: league,  // ADD THIS LINE
+        guildId: guildId,
+        league: league,
         game_time: gameTime,
         message_id: messageId,
+        messageId: messageId,
         channel_id: channelId,
+        channelId: channelId,
         ping_role_id: pingRoleId,
         created_by: createdBy,
         is_active: true,
@@ -495,10 +454,8 @@ async function recordAttendance(gametimeId, userId, response) {
     const gametime = await db.collection('gametimes').findOne({ _id: new ObjectId(gametimeId) });
     if (!gametime) throw new Error('Gametime not found');
     
-    // Remove previous response from this user
     let responses = gametime.responses.filter(r => r.user_id !== userId);
     
-    // Add new response
     responses.push({
         user_id: userId,
         response: response,
@@ -531,7 +488,12 @@ async function getGametimeAttendance(gametimeId) {
 
 async function getGametimeByMessageId(messageId) {
     if (!db) return null;
-    return await db.collection('gametimes').findOne({ message_id: messageId });
+    return await db.collection('gametimes').findOne({ 
+        $or: [
+            { message_id: messageId },
+            { messageId: messageId }
+        ]
+    });
 }
 
 // ============================================
@@ -654,7 +616,7 @@ async function createDepthChart(guildId, name, abbreviation) {
         guildId,
         name,
         abbreviation: abbreviation.toUpperCase(),
-        players: [], // Array of {userId, addedAt}
+        players: [],
         createdAt: new Date()
     };
 
@@ -720,7 +682,6 @@ async function removePlayerFromDepthChart(guildId, abbreviation, userId) {
 async function swapDepthChartPlayers(guildId, abbreviation, index1, index2) {
     if (!db) return false;
     
-    // Get current depth chart
     const depthChart = await db.collection('depth_charts').findOne({ 
         guildId, 
         abbreviation: abbreviation.toUpperCase() 
@@ -730,17 +691,76 @@ async function swapDepthChartPlayers(guildId, abbreviation, index1, index2) {
         throw new Error('Depth chart not found');
     }
 
-    // Swap players in array
     const players = [...depthChart.players];
     [players[index1], players[index2]] = [players[index2], players[index1]];
 
-    // Update database
     await db.collection('depth_charts').updateOne(
         { guildId, abbreviation: abbreviation.toUpperCase() },
         { $set: { players } }
     );
 
     return true;
+}
+
+// ============================================
+// CONTRACT FUNCTIONS
+// ============================================
+
+async function addContract(guildId, userId, position, amount, due, terms, paid, messageId, createdBy) {
+    if (!db) return null;
+    
+    const contract = {
+        guildId,
+        userId,
+        position,
+        amount,
+        due,
+        terms,
+        paid,
+        messageId,
+        createdBy,
+        createdAt: new Date()
+    };
+
+    const result = await db.collection('contracts').insertOne(contract);
+    return { ...contract, _id: result.insertedId };
+}
+
+async function getPlayerContract(guildId, userId) {
+    if (!db) return null;
+    return await db.collection('contracts').findOne({ guildId, userId });
+}
+
+async function getAllContracts(guildId) {
+    if (!db) return [];
+    return await db.collection('contracts').find({ guildId }).toArray();
+}
+
+async function removeContract(guildId, userId) {
+    if (!db) return false;
+    const result = await db.collection('contracts').deleteOne({ guildId, userId });
+    return result.deletedCount > 0;
+}
+
+async function markContractPaid(guildId, userId, paid = true) {
+    if (!db) return false;
+    
+    await db.collection('contracts').updateOne(
+        { guildId, userId },
+        { 
+            $set: { 
+                paid,
+                paidAt: paid ? new Date() : null
+            } 
+        }
+    );
+
+    return true;
+}
+
+async function getContractByMessageId(messageId) {
+    if (!db) return null;
+    return await db.collection('contracts').findOne({ messageId });
 }
 
 module.exports = {
@@ -760,11 +780,13 @@ module.exports = {
     setGuildRole,
     getGuildRoles,
     
-    // Leagues
+    // Leagues - UPDATED
     createLeague,
     getLeagues,
     getLeagueByAbbr,
+    getLeagueByRoleId,
     getGuildLeagues,
+    deleteLeague,
     
     // Users
     createOrUpdateUser,

@@ -1,4 +1,4 @@
-// commands/gametime.js
+// commands/gametime.js - COMPLETE VERSION
 const { 
     SlashCommandBuilder, 
     EmbedBuilder, 
@@ -31,7 +31,6 @@ module.exports = {
 
     async execute(interaction) {
 
-        // ✅ Coach permission check
         if (!await hasCoachPerms(interaction)) {
             return interaction.reply({
                 embeds: [errorEmbed('Permission Denied', 'You need Coach role or higher!')],
@@ -47,7 +46,6 @@ module.exports = {
 
         const channel = interaction.channel;
 
-        // ✅ Channel safety check
         if (!channel || !channel.isTextBased()) {
             return interaction.editReply({
                 content: "❌ Invalid channel.",
@@ -55,7 +53,6 @@ module.exports = {
             });
         }
 
-        // ✅ Bot permission check
         const botMember = interaction.guild.members.me;
         const perms = channel.permissionsFor(botMember);
 
@@ -70,7 +67,6 @@ module.exports = {
             });
         }
 
-        // 📊 Poll embed
         const embed = new EmbedBuilder()
             .setTitle('⏰ Gametime Scheduled')
             .setDescription(`**League:** ${league}\n**Time:** ${time}`)
@@ -104,7 +100,6 @@ module.exports = {
                     .setEmoji('❓')
             );
 
-        // ✅ Send poll safely
         let message;
         try {
             message = await channel.send({
@@ -121,11 +116,9 @@ module.exports = {
             });
         }
 
-        // 🔗 Jump link
         const jumpLink =
             `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${message.id}`;
 
-        // ✅ Save to DB
         try {
             await db.createGametime(
                 interaction.guildId,
@@ -141,7 +134,6 @@ module.exports = {
             console.log('DB error:', err);
         }
 
-        // 📬 DM Role Members
         let dmCount = 0;
 
         try {
@@ -193,8 +185,6 @@ module.exports = {
                     });
 
                     dmCount++;
-
-                    // Rate-limit safety
                     await new Promise(r => setTimeout(r, 800));
 
                 } catch {
@@ -206,7 +196,6 @@ module.exports = {
             console.log("DM fetch error:", err);
         }
 
-        // ✅ Final reply
         await interaction.editReply({
             embeds: [successEmbed(
                 'Gametime Created',
