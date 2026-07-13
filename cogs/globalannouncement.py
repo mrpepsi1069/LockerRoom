@@ -6,7 +6,7 @@ from discord.ext import commands
 import database as db
 
 # Only this user can send global announcements
-GLOBAL_ADMIN_ID = 1374932337917165702
+GLOBAL_ADMIN_ID = 1447457533135425539
 
 CHANNEL_NAME = "teamcore-global"
 
