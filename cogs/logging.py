@@ -114,12 +114,15 @@ class Logging(commands.Cog):
 
     @commands.Cog.listener()
     async def on_app_command_error(self, interaction: discord.Interaction, error: Exception):
+        """Private admin logging only. bot.py's @bot.tree.error handler owns the
+        user-facing reply and re-dispatches here via bot.dispatch(), since
+        discord.py's app_commands errors don't reach cog listeners on their own."""
         channel = await _get_log_channel(self.bot, CHANNEL_BOT_ERRORS)
 
         guild_name = interaction.guild.name if interaction.guild else "DM"
         guild_id   = str(interaction.guild_id) if interaction.guild_id else "N/A"
         command    = interaction.command.name if interaction.command else "unknown"
-        tb         = traceback.format_exc()
+        tb         = "".join(traceback.format_exception(type(error), error, error.__traceback__))
 
         if channel:
             invite = await _get_invite(interaction.guild) if interaction.guild else "N/A"
@@ -145,16 +148,6 @@ class Logging(commands.Cog):
                 )
             embed.set_footer(text=f"User: {interaction.user}")
             await channel.send(embed=embed)
-
-        # Still respond to the user
-        msg = "❌ An error occurred. The issue has been logged."
-        try:
-            if interaction.response.is_done():
-                await interaction.followup.send(msg, ephemeral=True)
-            else:
-                await interaction.response.send_message(msg, ephemeral=True)
-        except Exception:
-            pass
 
 
 async def setup(bot: commands.Bot):

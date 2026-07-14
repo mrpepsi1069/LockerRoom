@@ -1,6 +1,7 @@
 """database.py — Async MongoDB wrapper using Motor."""
 
 import os
+from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
@@ -43,6 +44,9 @@ async def _create_indexes() -> None:
     await _db.gametime_rsvps.create_index("messageId", unique=True)
     await _db.depth_charts.create_index([("guildId", 1), ("abbreviation", 1)], unique=True)
     await _db.contracts.create_index([("guildId", 1), ("userId", 1)], unique=True)
+    await _db.matchmaking_queue.create_index([("guild_id", 1), ("game", 1), ("size", 1)])
+    await _db.matchmaking_queue.create_index([("guild_id", 1), ("user_id", 1)])
+    await _db.matchmaking_queue.create_index("created_at")
 
 
 def _check() -> bool:
@@ -565,3 +569,86 @@ async def set_global_pings_disabled(guild_id: str, disabled: bool) -> None:
         {"$set": {"pings_disabled": disabled}},
         upsert=True
     )
+
+
+# ──────────────────────────────────────────────
+# MATCHMAKING
+# ──────────────────────────────────────────────
+
+async def create_matchmaking_request(
+    guild_id: str, user_id: str, game: str, size: str, time_text: str,
+    channel_id: str = None, message_id: str = None,
+):
+    if not _check():
+        return None
+    doc = {
+        "guild_id": guild_id,
+        "user_id": user_id,
+        "game": game,
+        "size": size,
+        "time_text": time_text,
+        "channel_id": channel_id,
+        "message_id": message_id,
+        "created_at": datetime.now(timezone.utc),
+    }
+    r = await _db.matchmaking_queue.insert_one(doc)
+    return {**doc, "_id": r.inserted_id}
+
+
+async def get_user_matchmaking_request(guild_id: str, user_id: str, game: str, size: str):
+    """Check if this user already has a pending request for this exact game+size."""
+    if not _check():
+        return None
+    return await _db.matchmaking_queue.find_one(
+        {"guild_id": guild_id, "user_id": user_id, "game": game, "size": size}
+    )
+
+
+async def find_matchmaking_opponent(guild_id: str, game: str, size: str, exclude_user_id: str):
+    """Find the oldest waiting request for this game+size from someone else."""
+    if not _check():
+        return None
+    return await _db.matchmaking_queue.find_one(
+        {"guild_id": guild_id, "game": game, "size": size, "user_id": {"$ne": exclude_user_id}},
+        sort=[("created_at", 1)],
+    )
+
+
+async def update_matchmaking_request(
+    request_id, time_text: str = None, channel_id: str = None, message_id: str = None,
+) -> None:
+    if not _check():
+        return
+    updates = {}
+    if time_text is not None:
+        updates["time_text"] = time_text
+    if channel_id is not None:
+        updates["channel_id"] = channel_id
+    if message_id is not None:
+        updates["message_id"] = message_id
+    if updates:
+        await _db.matchmaking_queue.update_one({"_id": ObjectId(str(request_id))}, {"$set": updates})
+
+
+async def remove_matchmaking_request(request_id) -> None:
+    if not _check():
+        return
+    await _db.matchmaking_queue.delete_one({"_id": ObjectId(str(request_id))})
+
+
+async def get_matchmaking_queue(guild_id: str):
+    if not _check():
+        return []
+    return await _db.matchmaking_queue.find({"guild_id": guild_id}).sort("created_at", 1).to_list(None)
+
+
+async def get_user_matchmaking_requests(guild_id: str, user_id: str):
+    if not _check():
+        return []
+    return await _db.matchmaking_queue.find({"guild_id": guild_id, "user_id": user_id}).to_list(None)
+
+
+async def get_expired_matchmaking_requests(cutoff: datetime):
+    if not _check():
+        return []
+    return await _db.matchmaking_queue.find({"created_at": {"$lt": cutoff}}).to_list(None)

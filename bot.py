@@ -3,7 +3,6 @@
 import os
 import sys
 import asyncio
-import pathlib
 from aiohttp import web
 from dotenv import load_dotenv
 import discord
@@ -64,6 +63,26 @@ async def on_interaction(interaction: discord.Interaction):
             await _handle_league_signup(interaction, cid.split("_")[2])
 
 
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    print(f"❌ Command error: {error}")
+
+    # Bridge into a real dispatched event so cogs (e.g. cogs/logging.py) can
+    # react to it via @commands.Cog.listener(). discord.py's app_commands
+    # errors otherwise only reach CommandTree.on_error and are never
+    # dispatched anywhere else on their own.
+    bot.dispatch("app_command_error", interaction, error)
+
+    msg = discord.Embed(title="❌ Error", description="Command failed.", color=0xED4245)
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(embed=msg, ephemeral=True)
+    except Exception:
+        pass
+
+
 # ──────────────────────────────────────────────
 # League Signup Button Handler
 # ──────────────────────────────────────────────
@@ -111,7 +130,7 @@ COGS = [
     "cogs.ringadd", "cogs.lineup", "cogs.depthchart", "cogs.league",
     "cogs.gametime", "cogs.times", "cogs.contract",
     "cogs.globalannouncement", "cogs.templateuse", "cogs.join",
-    "cogs.logging", "cogs.botkick", "cogs.say",
+    "cogs.logging", "cogs.botkick", "cogs.say", "cogs.matchmaking",
 ]
 
 

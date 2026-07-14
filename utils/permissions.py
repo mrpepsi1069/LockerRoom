@@ -1,7 +1,6 @@
 """utils/permissions.py — Role-based permission checks using DB config"""
 
 import discord
-from discord.ext import commands
 import database as db
 
 

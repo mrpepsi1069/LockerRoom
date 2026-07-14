@@ -50,7 +50,7 @@ class Premium(commands.Cog):
         )
         embed.add_field(
             name="🛒 How to Purchase",
-            value=f"Click **Purchase Premium** below to join our Discord and open a ticket!",
+            value="Click **Purchase Premium** below to join our Discord and open a ticket!",
             inline=False,
         )
         embed.set_footer(text="Made by Ghostie | Premium Support Available 24/7")

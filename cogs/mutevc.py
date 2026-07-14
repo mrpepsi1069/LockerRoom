@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from utils.embeds import error_embed, success_embed
-from utils.permissions import has_staff_perms, has_coach_perms
+from utils.permissions import has_staff_perms
 
 
 class MuteVC(commands.Cog):

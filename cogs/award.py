@@ -59,13 +59,13 @@ class Award(commands.Cog):
                 embed=error_embed("Already Exists", f"{member.mention} already has **{award_name}** for {season}."), ephemeral=True
             )
 
-        channels = await db.get_guild_channels(str(interaction.guild_id))
+        cfg = await db.get_guild_config(str(interaction.guild_id)) or {}
         embed = success_embed(
             f"🏆 {award_name}",
             f"**{league_doc['league_name']} — {season}**\n\nCongratulations to {member.mention} for winning **{award_name}**!",
         )
-        if channels.get("awards"):
-            ch = interaction.guild.get_channel(int(channels["awards"]))
+        if cfg.get("awards_channel"):
+            ch = interaction.guild.get_channel(int(cfg["awards_channel"]))
             if ch:
                 await ch.send(embed=embed)
 

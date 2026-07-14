@@ -1,5 +1,4 @@
 # utils/attendance.py - Game time attendance logic (TeamCore)
-import database
 
 
 def group_attendance_by_response(attendance_list: list) -> dict:

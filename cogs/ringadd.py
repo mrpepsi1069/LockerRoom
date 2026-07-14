@@ -1,5 +1,6 @@
 """cogs/ringadd.py"""
 
+from typing import Optional
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -17,18 +18,24 @@ class RingAdd(commands.Cog):
     @app_commands.describe(
         league="League abbreviation", season="Season (e.g., S1)", opponent="Team you beat in the finals",
         player1="Player 1", player2="Player 2", player3="Player 3", player4="Player 4", player5="Player 5",
+        player6="Player 6", player7="Player 7", player8="Player 8", player9="Player 9", player10="Player 10",
     )
     async def ring_add(
         self,
         interaction: discord.Interaction,
         league: str,
         season: str,
-        player1: discord.User,
+        player1: discord.Member,
         opponent: str = None,
-        player2: discord.User = None,
-        player3: discord.User = None,
-        player4: discord.User = None,
-        player5: discord.User = None,
+        player2: Optional[discord.Member] = None,
+        player3: Optional[discord.Member] = None,
+        player4: Optional[discord.Member] = None,
+        player5: Optional[discord.Member] = None,
+        player6: Optional[discord.Member] = None,
+        player7: Optional[discord.Member] = None,
+        player8: Optional[discord.Member] = None,
+        player9: Optional[discord.Member] = None,
+        player10: Optional[discord.Member] = None,
     ):
         if not await has_manager_perms(interaction):
             return await interaction.response.send_message(
@@ -52,7 +59,7 @@ class RingAdd(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
-        players = [p for p in [player1, player2, player3, player4, player5] if p]
+        players = [p for p in [player1, player2, player3, player4, player5, player6, player7, player8, player9, player10] if p]
         results = []
         for p in players:
             await db.create_or_update_user(str(p.id), p.name)
@@ -62,7 +69,7 @@ class RingAdd(commands.Cog):
             )
             results.append(f"{'✅' if ring else '⚠️ (already has ring)'} {p.mention}")
 
-        channels = await db.get_guild_channels(str(interaction.guild_id))
+        cfg = await db.get_guild_config(str(interaction.guild_id)) or {}
         desc = (
             f"**{league_doc['league_name']} — {season} Champions**"
             + (f"\n\nDefeated **{opponent}** in the finals!" if opponent else "")
@@ -70,10 +77,13 @@ class RingAdd(commands.Cog):
             + " ".join(p.mention for p in players)
         )
         congrats = success_embed("💍 Championship Rings Awarded!", desc)
-        if channels.get("awards"):
-            ch = interaction.guild.get_channel(int(channels["awards"]))
-            if ch:
-                await ch.send(embed=congrats)
+        if cfg.get("awards_channel"):
+            try:
+                ch = interaction.guild.get_channel(int(cfg["awards_channel"]))
+                if ch:
+                    await ch.send(embed=congrats)
+            except Exception:
+                pass
 
         await interaction.followup.send(
             embed=success_embed("Rings Granted", f"Granted rings to **{len(players)}** player(s)!\n\n" + "\n".join(results)),

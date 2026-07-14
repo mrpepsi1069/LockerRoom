@@ -48,9 +48,9 @@ class League(commands.Cog):
 
         await db.create_league(str(interaction.guild_id), name, abbr, signup, str(role.id))
 
-        channels = await db.get_guild_channels(str(interaction.guild_id))
-        if channels.get("league_log"):
-            log_ch = interaction.guild.get_channel(int(channels["league_log"]))
+        channels = await db.get_guild_config(str(interaction.guild_id)) or {}
+        if channels.get("league_log_channel"):
+            log_ch = interaction.guild.get_channel(int(channels["league_log_channel"]))
             if log_ch:
                 log = discord.Embed(title="🏈 New League Added", description=f"**{name}** ({abbr})", color=0x00FF00)
                 log.add_field(name="Role", value=role.mention, inline=True)
@@ -87,9 +87,9 @@ class League(commands.Cog):
 
         await db.delete_league(str(interaction.guild_id), abbr)
 
-        channels = await db.get_guild_channels(str(interaction.guild_id))
-        if channels.get("league_log"):
-            log_ch = interaction.guild.get_channel(int(channels["league_log"]))
+        channels = await db.get_guild_config(str(interaction.guild_id)) or {}
+        if channels.get("league_log_channel"):
+            log_ch = interaction.guild.get_channel(int(channels["league_log_channel"]))
             if log_ch:
                 log = discord.Embed(title="🗑️ League Deleted", description=f"**{league['league_name']}** ({abbr})", color=0xFF0000)
                 log.add_field(name="Deleted By", value=interaction.user.mention, inline=True)

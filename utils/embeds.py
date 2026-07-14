@@ -90,11 +90,20 @@ def help_embed() -> discord.Embed:
         inline=False,
     )
     embed.add_field(
+        name="🎮 Matchmaking",
+        value=(
+            "/matchmaking - Open the Core Match Making board\n"
+            "/matchmaking-queue - View who's currently looking for a match\n"
+            "/matchmaking-cancel - Cancel your pending request(s)"
+        ),
+        inline=False,
+    )
+    embed.add_field(
         name="👮 Staff Commands",
         value=(
             "/mutevc - Mute voice channel\n"
             "/unmutevc - Unmute voice channel\n"
-            "/dmtcmembers - DM members with custom message (Premium)"
+            "/dmmembers - DM members with selected roles"
         ),
         inline=False,
     )
@@ -103,8 +112,9 @@ def help_embed() -> discord.Embed:
         value=(
             "/gametime - Create game time poll (DMs players with Premium)\n"
             "/times - Multiple time options\n"
-            "/league-add - Post recruitment\n"
-            "/league-delete - Remove a league\n"
+            "/league add - Add a new league\n"
+            "/league delete - Delete a league\n"
+            "/league recruit - Post recruitment message\n"
             "/ring-add - Grant rings\n"
             "/award - Give awards"
         ),
@@ -113,35 +123,35 @@ def help_embed() -> discord.Embed:
     embed.add_field(
         name="Lineups",
         value=(
-            "/lineup-create - Create a new lineup\n"
-            "/lineup-view - View a specific lineup\n"
-            "/lineup-edit - Edit a player position in a lineup\n"
-            "/lineup-delete - Delete a lineup\n"
-            "/lineup-add - Add a player to a lineup\n"
-            "/lineup-remove - Remove a player from a lineup\n"
-            "/lineup-post - Post a lineup to a channel\n"
-            "/lineups - View all lineups"
+            "/lineup create - Create a new lineup\n"
+            "/lineup view - View a specific lineup\n"
+            "/lineup edit - Edit a player position in a lineup\n"
+            "/lineup delete - Delete a lineup\n"
+            "/lineup add - Add a player to a lineup\n"
+            "/lineup remove - Remove a player from a lineup\n"
+            "/lineup post - Post a lineup to a channel\n"
+            "/lineup list - View all lineups"
         ),
         inline=False,
     )
     embed.add_field(
         name="Depth Charts",
         value=(
-            "/depthchart-create - Create a new depth chart\n"
-            "/depthchart-delete - Delete an entire depth chart\n"
-            "/depthchart-add - Add a player to depth chart\n"
-            "/depthchart-remove - Remove a player from depth chart\n"
-            "/depthchart-promote - Promote a player up the depth chart\n"
-            "/depthchart-demote - Demote a player down the depth chart"
+            "/depthchart create - Create a new depth chart\n"
+            "/depthchart delete - Delete an entire depth chart\n"
+            "/depthchart add - Add a player to depth chart\n"
+            "/depthchart remove - Remove a player from depth chart\n"
+            "/depthchart promote - Promote a player up the depth chart\n"
+            "/depthchart demote - Demote a player down the depth chart"
         ),
         inline=False,
     )
     embed.add_field(
         name="Contracts",
         value=(
-            "/contract-add - Add a player contract\n"
-            "/contract-remove - Remove a player contract\n"
-            "/contract-post - Post all active contracts\n"
+            "/contract add - Add a player contract\n"
+            "/contract remove - Remove a player contract\n"
+            "/contract post - Post all active contracts\n"
             "/activitycheck - Set activity check"
         ),
         inline=False,
@@ -150,10 +160,11 @@ def help_embed() -> discord.Embed:
         name="🔧 Admin Commands",
         value=(
             "/setup - Configure bot\n"
-            "/role - Role a user a role\n"
-            "/unrole - Unrole a user a role\n"
-            "/adminkick - Kick a user\n"
-            "/adminban - ban a user"
+            "/role - Give a user a role\n"
+            "/unrole - Remove a role from a user\n"
+            "/kick - Kick a user\n"
+            "/ban - Ban a user\n"
+            "/timeout - Timeout a user"
         ),
         inline=False,
     )

@@ -9,11 +9,22 @@ import database as db
 
 
 class ContractView(discord.ui.View):
-    def __init__(self, user_id: str):
+    """Persistent view for contract messages.
+
+    IMPORTANT: user_id is intentionally NOT relied upon for the actual
+    database update — it's only used as a fallback for display. The real
+    source of truth is always looked up fresh via the message id, so a
+    single instance of this view can be registered once at startup with
+    bot.add_view() and keep working for every contract message, even after
+    a bot restart (a per-user-parameterized view has no way to be
+    re-registered for messages sent in a previous process).
+    """
+
+    def __init__(self, user_id: str | None = None):
         super().__init__(timeout=None)
         self.user_id = user_id
 
-    @discord.ui.button(label="Mark as Paid", style=discord.ButtonStyle.success, emoji="💰")
+    @discord.ui.button(label="Mark as Paid", style=discord.ButtonStyle.success, emoji="💰", custom_id="contract_mark_paid")
     async def mark_paid(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         if not await has_coach_perms(interaction):
@@ -23,8 +34,9 @@ class ContractView(discord.ui.View):
         if not contract:
             return await interaction.followup.send("❌ Contract not found in database!", ephemeral=True)
 
+        user_id = contract["userId"]
         new_paid = not contract.get("paid", False)
-        await db.mark_contract_paid(str(interaction.guild_id), self.user_id, new_paid)
+        await db.mark_contract_paid(str(interaction.guild_id), user_id, new_paid)
 
         embed = interaction.message.embeds[0]
         new_embed = discord.Embed.from_dict(embed.to_dict())
@@ -36,22 +48,27 @@ class ContractView(discord.ui.View):
         new_embed.color = 0x00FF00 if new_paid else 0xFFD700
 
         # Update button labels
-        new_view = ContractView(self.user_id)
+        new_view = ContractView(user_id)
         new_view.children[0].label = "Mark as Unpaid" if new_paid else "Mark as Paid"
         new_view.children[0].style = discord.ButtonStyle.secondary if new_paid else discord.ButtonStyle.success
         await interaction.message.edit(embed=new_embed, view=new_view)
 
-        user = await interaction.client.fetch_user(int(self.user_id))
+        user = await interaction.client.fetch_user(int(user_id))
         await interaction.followup.send(f"✅ Contract marked as **{'PAID' if new_paid else 'UNPAID'}** for {user.mention}!", ephemeral=True)
 
-    @discord.ui.button(label="Delete Contract", style=discord.ButtonStyle.danger, emoji="🗑️")
+    @discord.ui.button(label="Delete Contract", style=discord.ButtonStyle.danger, emoji="🗑️", custom_id="contract_delete")
     async def delete_contract(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         if not await has_coach_perms(interaction):
             return await interaction.followup.send("❌ Only coaches can manage contracts!", ephemeral=True)
 
-        user = await interaction.client.fetch_user(int(self.user_id))
-        await db.remove_contract(str(interaction.guild_id), self.user_id)
+        contract = await db.get_contract_by_message_id(str(interaction.message.id))
+        if not contract:
+            return await interaction.followup.send("❌ Contract not found in database!", ephemeral=True)
+
+        user_id = contract["userId"]
+        user = await interaction.client.fetch_user(int(user_id))
+        await db.remove_contract(str(interaction.guild_id), user_id)
         await interaction.message.delete()
         await interaction.followup.send(f"🗑️ Contract for {user.mention} has been deleted!", ephemeral=True)
 
@@ -59,6 +76,7 @@ class ContractView(discord.ui.View):
 class Contract(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        bot.add_view(ContractView())
 
     group = app_commands.Group(name="contract", description="Manage player contracts")
 
@@ -69,11 +87,11 @@ class Contract(commands.Cog):
             return await interaction.response.send_message(embed=error_embed("Permission Denied", "You need Coach role or higher."), ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
-        channels = await db.get_guild_channels(str(interaction.guild_id))
-        if not channels.get("contract"):
+        cfg = await db.get_guild_config(str(interaction.guild_id)) or {}
+        if not cfg.get("contract_channel"):
             return await interaction.followup.send(embed=error_embed("Setup Required", "Run `/setup` first to configure the contract channel."), ephemeral=True)
 
-        contract_ch = interaction.guild.get_channel(int(channels["contract"]))
+        contract_ch = interaction.guild.get_channel(int(cfg["contract_channel"]))
         if not contract_ch:
             return await interaction.followup.send(embed=error_embed("Channel Not Found", "Contract channel no longer exists. Run `/setup` again."), ephemeral=True)
 
@@ -127,9 +145,9 @@ class Contract(commands.Cog):
         if not contract:
             return await interaction.followup.send(embed=error_embed("Not Found", f"{user.mention} doesn't have an active contract."), ephemeral=True)
 
-        channels = await db.get_guild_channels(str(interaction.guild_id))
-        if channels.get("contract") and contract.get("messageId"):
-            ch = interaction.guild.get_channel(int(channels["contract"]))
+        cfg = await db.get_guild_config(str(interaction.guild_id)) or {}
+        if cfg.get("contract_channel") and contract.get("messageId"):
+            ch = interaction.guild.get_channel(int(cfg["contract_channel"]))
             if ch:
                 try:
                     m = await ch.fetch_message(int(contract["messageId"]))

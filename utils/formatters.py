@@ -1,5 +1,4 @@
 # utils/formatters.py - Text formatting utilities (TeamCore)
-import time
 from datetime import datetime
 
 

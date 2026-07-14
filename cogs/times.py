@@ -11,7 +11,6 @@ from utils.permissions import has_manager_perms
 class Times(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        bot.add_view(TimesView([], ""))
 
     @app_commands.command(name="times", description="Create a poll for multiple time options")
     @app_commands.describe(
@@ -84,6 +83,63 @@ class Times(commands.Cog):
                 ephemeral=True,
             )
 
+    # ──────────────────────────────────────────────
+    # Button handling
+    #
+    # These buttons are intentionally NOT wired up with a per-instance
+    # Python callback (see TimesView below). Poll state lives entirely in
+    # the message's embed text, so handling clicks here — driven only by
+    # the interaction's custom_id and the live message content — means the
+    # buttons keep working even after a bot restart, when the original
+    # TimesView object that created them no longer exists in memory.
+    # ──────────────────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        if interaction.type != discord.InteractionType.component:
+            return
+        cid = interaction.data.get("custom_id", "")
+        if not cid.startswith("times*"):
+            return
+
+        try:
+            index = int(cid.split("*", 1)[1].split("_", 1)[0])
+        except (IndexError, ValueError):
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        embed = interaction.message.embeds[0]
+        uid = str(interaction.user.id)
+
+        header, sections = _parse_sections(embed.description)
+
+        if index >= len(sections):
+            return await interaction.followup.send("❌ Something went wrong.", ephemeral=True)
+
+        t, users = sections[index]
+
+        if uid in users:
+            users.remove(uid)
+        else:
+            users.append(uid)
+
+        sections[index] = (t, users)
+
+        new_embed = discord.Embed.from_dict(embed.to_dict())
+        new_embed.description = _build_desc(header, sections)
+
+        await interaction.message.edit(embed=new_embed)
+
+        selected = [t for t, users in sections if uid in users]
+
+        if selected:
+            msg = "✅ Your selected times:\n" + "\n".join(f"• {t}" for t in selected)
+        else:
+            msg = "ℹ️ You haven't selected any times yet."
+
+        await interaction.followup.send(msg, ephemeral=True)
+
 
 def _parse_sections(desc: str) -> tuple[str, list[tuple[str, list[str]]]]:
     """Parse embed description into header + list of (time, [user_ids])."""
@@ -131,46 +187,7 @@ class TimesView(discord.ui.View):
                 style=discord.ButtonStyle.primary,
                 custom_id=f"times*{i}_{safe_time}",
             )
-
-            btn.callback = self._make_callback(i)
             self.add_item(btn)
-
-    def _make_callback(self, index: int):
-        async def callback(interaction: discord.Interaction):
-            await interaction.response.defer(ephemeral=True)
-
-            embed = interaction.message.embeds[0]
-            uid = str(interaction.user.id)
-
-            header, sections = _parse_sections(embed.description)
-
-            if index >= len(sections):
-                return await interaction.followup.send("❌ Something went wrong.", ephemeral=True)
-
-            t, users = sections[index]
-
-            if uid in users:
-                users.remove(uid)
-            else:
-                users.append(uid)
-
-            sections[index] = (t, users)
-
-            new_embed = discord.Embed.from_dict(embed.to_dict())
-            new_embed.description = _build_desc(header, sections)
-
-            await interaction.message.edit(embed=new_embed)
-
-            selected = [t for t, users in sections if uid in users]
-
-            if selected:
-                msg = "✅ Your selected times:\n" + "\n".join(f"• {t}" for t in selected)
-            else:
-                msg = "ℹ️ You haven't selected any times yet."
-
-            await interaction.followup.send(msg, ephemeral=True)
-
-        return callback
 
 
 async def setup(bot: commands.Bot):

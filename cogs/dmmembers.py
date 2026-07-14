@@ -99,7 +99,7 @@ class RoleSelectView(discord.ui.View):
                 embed.add_field(name="👤 Sent By", value=self.original_interaction.user.mention, inline=False)
                 embed.add_field(
                     name="🏠 Server",
-                    value=channel_link,
+                    value=f"{icon} {channel_link}",
                     inline=False
                 )
                 await m.send(embed=embed)

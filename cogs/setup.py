@@ -23,9 +23,13 @@ ROLE_LABELS = {
 }
 
 CHANNEL_KEYS = {
-    "log_channel":        "Log Channel",
-    "announce_channel":   "Announcements Channel",
-    "gametime_channel":   "Gametime Channel",
+    "log_channel":         "Log Channel",
+    "announce_channel":    "Announcements Channel",
+    "gametime_channel":    "Gametime Channel",
+    "matchmaking_channel": "Matchmaking Channel",
+    "contract_channel":    "Contract Channel",
+    "awards_channel":      "Awards Channel",
+    "league_log_channel":  "League Log Channel",
 }
 
 
@@ -91,7 +95,9 @@ class RoleSelect(discord.ui.RoleSelect):
         await db.set_guild_config(str(interaction.guild_id), {self.key: role.id})
 
         embed = await build_status_embed(str(interaction.guild_id))
-        await interaction.response.edit_message(embed=embed, view=SetupView())
+        new_view = SetupView()
+        await interaction.response.edit_message(embed=embed, view=new_view)
+        new_view.message = interaction.message
 
 
 class ChannelSelect(discord.ui.ChannelSelect):
@@ -110,7 +116,9 @@ class ChannelSelect(discord.ui.ChannelSelect):
         await db.set_guild_config(str(interaction.guild_id), {self.key: channel.id})
 
         embed = await build_status_embed(str(interaction.guild_id))
-        await interaction.response.edit_message(embed=embed, view=SetupView())
+        new_view = SetupView()
+        await interaction.response.edit_message(embed=embed, view=new_view)
+        new_view.message = interaction.message
 
 
 # ─────────────────────────────────────────────
@@ -120,6 +128,7 @@ class ChannelSelect(discord.ui.ChannelSelect):
 class SetupView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=300)
+        self.message: discord.Message | None = None
 
     async def send_select(self, interaction, select):
         view = discord.ui.View()
@@ -167,9 +176,25 @@ class SetupView(discord.ui.View):
     async def set_gametime(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.send_select(interaction, ChannelSelect("gametime_channel", "Gametime Channel"))
 
+    @discord.ui.button(label="Matchmaking Channel", style=discord.ButtonStyle.primary, emoji="🎮", row=2)
+    async def set_matchmaking(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.send_select(interaction, ChannelSelect("matchmaking_channel", "Matchmaking Channel"))
+
+    @discord.ui.button(label="Contract Channel", style=discord.ButtonStyle.primary, emoji="📜", row=2)
+    async def set_contract(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.send_select(interaction, ChannelSelect("contract_channel", "Contract Channel"))
+
+    @discord.ui.button(label="Awards Channel", style=discord.ButtonStyle.primary, emoji="🏆", row=3)
+    async def set_awards(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.send_select(interaction, ChannelSelect("awards_channel", "Awards Channel"))
+
+    @discord.ui.button(label="League Log Channel", style=discord.ButtonStyle.primary, emoji="🏈", row=3)
+    async def set_league_log(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.send_select(interaction, ChannelSelect("league_log_channel", "League Log Channel"))
+
     # RESET
 
-    @discord.ui.button(label="Reset All", style=discord.ButtonStyle.danger, emoji="🗑️", row=3)
+    @discord.ui.button(label="Reset All", style=discord.ButtonStyle.danger, emoji="🗑️", row=4)
     async def reset_all(self, interaction: discord.Interaction, button: discord.ui.Button):
         await db.set_guild_config(
             str(interaction.guild_id),
@@ -182,6 +207,11 @@ class SetupView(discord.ui.View):
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
 
 
 # ─────────────────────────────────────────────
@@ -201,11 +231,13 @@ class Setup(commands.Cog):
             )
 
         embed = await build_status_embed(str(interaction.guild_id))
+        view = SetupView()
         await interaction.response.send_message(
             embed=embed,
-            view=SetupView(),
+            view=view,
             ephemeral=True
         )
+        view.message = await interaction.original_response()
 
 
 async def setup(bot: commands.Bot):
