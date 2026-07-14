@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-ADMIN_ID = 1374932337917165702
+ADMIN_ID = 1314823988253560852
 
 
 class BotKick(commands.Cog):
