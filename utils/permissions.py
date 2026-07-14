@@ -28,7 +28,7 @@ async def _has_role(interaction: discord.Interaction, *role_keys: str) -> bool:
 
 async def has_owner_perms(interaction: discord.Interaction) -> bool:
     """Bot owner only (hardcoded user ID)."""
-    return interaction.user.id == 1374932337917165702
+    return interaction.user.id == 1314823988253560852
 
 
 async def has_admin_perms(interaction: discord.Interaction) -> bool:
