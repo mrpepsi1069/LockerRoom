@@ -15,6 +15,7 @@ Flow:
   5. Stale queue entries are cleaned up automatically after a few hours.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import discord
@@ -97,40 +98,58 @@ async def _ensure_matchmaking_channel(guild: discord.Guild):
     return ch
 
 
+_board_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_board_lock(guild_id: int) -> asyncio.Lock:
+    lock = _board_locks.get(guild_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _board_locks[guild_id] = lock
+    return lock
+
+
 async def _ensure_matchmaking_board(guild: discord.Guild):
-    """Returns (channel, message). message is None if the board couldn't be posted."""
-    channel = await _ensure_matchmaking_channel(guild)
-    if not channel:
-        return None, None
+    """Returns (channel, message). message is None if the board couldn't be posted.
 
-    cfg = await db.get_guild_config(str(guild.id)) or {}
-    board_msg_id = cfg.get("matchmaking_board_message_id")
-    if board_msg_id:
+    Guarded by a per-guild lock so that if multiple people run /matchmaking at
+    the same moment (e.g. right after someone announces it), they can't race
+    past the "does a board already exist?" check and end up creating
+    duplicate channels or duplicate board embeds in the same channel.
+    """
+    async with _get_board_lock(guild.id):
+        channel = await _ensure_matchmaking_channel(guild)
+        if not channel:
+            return None, None
+
+        cfg = await db.get_guild_config(str(guild.id)) or {}
+        board_msg_id = cfg.get("matchmaking_board_message_id")
+        if board_msg_id:
+            try:
+                msg = await channel.fetch_message(int(board_msg_id))
+                return channel, msg
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                pass  # message is gone or unreachable; repost below
+
+        embed = discord.Embed(
+            title="🎮 Core Match Making",
+            description=(
+                "Looking for a scrimmage? Pick your game below to get started!\n\n"
+                f"**⚽ {GAMES[0]}**\n**🏈 {GAMES[1]}**\n\n"
+                "You'll then choose a match type (2v2–11v11) and a time. "
+                "We'll DM you the moment we find someone looking for the same match!"
+            ),
+            color=COLORS["primary"],
+        )
+        embed.set_footer(text="TeamCore • Matchmaking")
+
         try:
-            msg = await channel.fetch_message(int(board_msg_id))
-            return channel, msg
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            pass  # message is gone or unreachable; repost below
+            msg = await channel.send(embed=embed, view=MatchmakingBoardView())
+        except (discord.Forbidden, discord.HTTPException):
+            return channel, None
 
-    embed = discord.Embed(
-        title="🎮 Core Match Making",
-        description=(
-            "Looking for a scrimmage? Pick your game below to get started!\n\n"
-            f"**⚽ {GAMES[0]}**\n**🏈 {GAMES[1]}**\n\n"
-            "You'll then choose a match type (2v2–11v11) and a time. "
-            "We'll DM you the moment we find someone looking for the same match!"
-        ),
-        color=COLORS["primary"],
-    )
-    embed.set_footer(text="TeamCore • Matchmaking")
-
-    try:
-        msg = await channel.send(embed=embed, view=MatchmakingBoardView())
-    except (discord.Forbidden, discord.HTTPException):
-        return channel, None
-
-    await db.set_guild_config(str(guild.id), {"matchmaking_board_message_id": str(msg.id)})
-    return channel, msg
+        await db.set_guild_config(str(guild.id), {"matchmaking_board_message_id": str(msg.id)})
+        return channel, msg
 
 
 async def _delete_board_message(guild: discord.Guild | None, channel_id, message_id) -> None:
