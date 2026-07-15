@@ -36,6 +36,7 @@ class GlobalAnnouncement(commands.Cog):
 
         success = 0
         failed = 0
+        dmed = 0
 
         for guild in self.bot.guilds:
             try:
@@ -107,12 +108,36 @@ class GlobalAnnouncement(commands.Cog):
                 )
                 success += 1
 
+                # Also DM the owner directly, unless they've opted out via /disableglobalmessages
+                if not pings_disabled:
+                    owner = guild.owner
+                    if owner is None and guild.owner_id:
+                        try:
+                            owner = await self.bot.fetch_user(guild.owner_id)
+                        except (discord.NotFound, discord.HTTPException):
+                            owner = None
+                    if owner:
+                        try:
+                            dm_embed = discord.Embed(
+                                title="📢 TeamCore Global Announcement",
+                                description=message,
+                                color=0x5865F2
+                            )
+                            dm_embed.set_footer(text=f"TeamCore Bot • Sent because you own {guild.name}")
+                            await owner.send(
+                                content="*Do `/disableglobalmessages` in your server to stop these DMs*",
+                                embed=dm_embed
+                            )
+                            dmed += 1
+                        except (discord.Forbidden, discord.HTTPException):
+                            pass  # owner has DMs closed or blocked the bot — not a failure of the announcement itself
+
             except Exception as e:
                 print(f"❌ Global announcement failed for {guild.name}: {e}")
                 failed += 1
 
         await interaction.followup.send(
-            f"✅ Announcement sent!\n📊 Success: **{success}** servers\n❌ Failed: **{failed}** servers",
+            f"✅ Announcement sent!\n📊 Success: **{success}** servers\n📬 Owners DMed: **{dmed}**\n❌ Failed: **{failed}** servers",
             ephemeral=True
         )
 
